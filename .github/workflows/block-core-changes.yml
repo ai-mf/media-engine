@@ -1,0 +1,43 @@
+name: Block Unauthorized Core Changes
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    paths:
+      - 'media_engine_core/**'
+
+jobs:
+  check-authorization:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+      
+      - name: Check if PR author is allowed
+        run: |
+          # Add allowed GitHub usernames here
+          ALLOWED_AUTHORS="yourusername team-lead security-lead"
+          PR_AUTHOR="${{ github.event.pull_request.user.login }}"
+          
+          # Check if changed files include media_engine_core
+          CHANGED_FILES=$(git diff --name-only HEAD~1 HEAD)
+          if echo "$CHANGED_FILES" | grep -q "^media_engine_core/"; then
+            if ! echo "$ALLOWED_AUTHORS" | grep -qw "$PR_AUTHOR"; then
+              echo "❌ ERROR: $PR_AUTHOR is not allowed to modify media_engine_core/"
+              echo "Allowed authors: $ALLOWED_AUTHORS"
+              echo ""
+              echo "If you need to change this directory, open an issue first."
+              exit 1
+            else
+              echo "✅ $PR_AUTHOR is authorized to modify media_engine_core/"
+            fi
+          else
+            echo "No core directory changes detected."
+          fi
+      
+      - name: List changed core files (if violation)
+        if: failure()
+        run: |
+          echo "Files that would be modified:"
+          git diff --name-only HEAD~1 HEAD | grep "^media_engine_core/" || true

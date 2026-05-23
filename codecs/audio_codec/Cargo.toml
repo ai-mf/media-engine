@@ -1,0 +1,13 @@
+[package]
+name = "audio_codec"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+media_engine_core = { path = "../../media_engine_core" }
+id3 = "1.0"
+hound = "3.5"
+rodio = "0.17"
+thiserror = "2"
+anyhow = "1.0"        # easy error propagation (optional)
+hex = "0.4"

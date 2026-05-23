@@ -1,0 +1,12 @@
+[package]
+name = "video_codec"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+media_engine_core = { path = "../../media_engine_core" }
+image_codec = { path = "../image_codec" }
+audio_codec = { path = "../audio_codec" }
+mp4 = "0.14"
+thiserror = "2"
+hex = "0.4"
