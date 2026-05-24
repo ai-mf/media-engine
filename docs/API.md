@@ -38,6 +38,8 @@ pub struct AiMetadata {
     pub channels: Option<u16>,
     pub fps: Option<u32>,
     pub timestamp: u64,
+    pub signature: Option<Vec<u8>>,
+    pub public_key: Option<Vec<u8>>,
 }
 
 Codec Functions

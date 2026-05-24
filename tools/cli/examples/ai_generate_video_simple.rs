@@ -54,7 +54,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         .args(&["run", "--bin", "aimf", "--", "ingest",
                 "--output", "test_video_10sec.avid",
                 "--model", "test-ai",
-                "--version", "1.0"])
+                "--version", "1.0",
+                "--key", "private.key"])
         .stdin(std::process::Stdio::piped())
         .spawn()?;
     

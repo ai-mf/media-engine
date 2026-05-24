@@ -3,6 +3,7 @@ use serde::{Serialize, Deserialize};
 use crate::metadata::{MediaType, PayloadType, AiMetadata};
 use crate::hash::compute_hash;
 use crate::error::CoreError;
+use crate::signature::CryptoSignature;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AiContainer {
@@ -34,6 +35,71 @@ impl AiContainer {
         })
     }
     
+    // Get data to sign (includes everything except signature fields)
+    pub fn get_signing_data(&self) -> Vec<u8> {
+        let signing_metadata = AiMetadata {
+            signature: None,
+            public_key: None,
+            ..self.metadata.clone()
+        };
+        
+        let container_for_signing = AiContainer {
+            media_type: self.media_type.clone(),
+            encoding: self.encoding.clone(),
+            payload_type: self.payload_type.clone(),
+            metadata: signing_metadata,
+            payload: self.payload.clone(),
+            hash: self.hash,
+        };
+        
+        // Serialize without signature fields
+        container_for_signing.serialize().unwrap_or_default()
+    }
+    
+    // Sign the container with a private key
+    pub fn sign(&mut self, signing_key: &ed25519_dalek::SigningKey) -> Result<(), CoreError> {
+        let data = self.get_signing_data();
+        let crypto_sig = CryptoSignature::new(signing_key, &data);
+        
+        self.metadata.signature = Some(crypto_sig.signature);
+        self.metadata.public_key = Some(crypto_sig.public_key);
+        
+        // Recompute hash after adding signature
+        self.hash = compute_hash(&self.payload, &self.metadata, &self.encoding);
+        
+        Ok(())
+    }
+    
+    // Verify the signature (if present)
+    pub fn verify_signature(&self) -> bool {
+        if let (Some(sig_bytes), Some(pk_bytes)) = (&self.metadata.signature, &self.metadata.public_key) {
+            let crypto_sig = CryptoSignature {
+                signature: sig_bytes.clone(),
+                public_key: pk_bytes.clone(),
+            };
+            let data = self.get_signing_data();
+            return crypto_sig.verify(&data);
+        }
+        // No signature means it's not cryptographically verified
+        false
+    }
+    
+    // Complete verification (hash + signature)
+    pub fn full_verify(&self) -> VerificationResult {
+        let hash_valid = self.verify();
+        
+        let signature_valid = if self.metadata.is_signed() {
+            Some(self.verify_signature())
+        } else {
+            None
+        };
+        
+        VerificationResult {
+            hash_valid,
+            signature_valid,
+            is_signed: self.metadata.is_signed(),
+        }
+    }
     pub fn verify(&self) -> bool {
         let computed_hash = compute_hash(&self.payload, &self.metadata, &self.encoding);
         self.hash == computed_hash
@@ -113,4 +179,10 @@ struct Header {
     payload_type: PayloadType,
     metadata: AiMetadata,
     hash: [u8; 32],
+}
+
+pub struct VerificationResult {
+    pub hash_valid: bool,
+    pub signature_valid: Option<bool>,
+    pub is_signed: bool,
 }

@@ -1,4 +1,4 @@
-// media-engine/media_engine_core/src/metadata.rs
+// media_engine_core/src/metadata.rs
 use serde::{Serialize, Deserialize};
 
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
@@ -36,6 +36,10 @@ pub struct AiMetadata {
 
     // 🔥 system
     pub timestamp: u64,
+    
+    // 🔥 NEW: Cryptographic signature (optional for MVP)
+    pub signature: Option<Vec<u8>>,
+    pub public_key: Option<Vec<u8>>,
 }
 
 impl AiMetadata {
@@ -62,6 +66,14 @@ impl AiMetadata {
                 .duration_since(std::time::UNIX_EPOCH)
                 .unwrap()
                 .as_secs(),
+                
+            signature: None,
+            public_key: None,
         }
+    }
+    
+    // Helper to check if metadata is signed
+    pub fn is_signed(&self) -> bool {
+        self.signature.is_some() && self.public_key.is_some()
     }
 }

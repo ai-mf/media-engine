@@ -1,4 +1,3 @@
-// media-engine/codecs/image_codec/src/lib.rs
 use png::{Encoder, ColorType, BitDepth};
 use std::io::Cursor;
 use media_engine_core::{AiContainer, CoreError, Frame};
@@ -15,86 +14,63 @@ pub enum ImageCodecError {
     NoAimChunk,
 }
 
-// Simple approach: append custom chunk at the end of PNG
-// PNG format allows unknown chunks anywhere
+// SIMPLE: Append metadata at the end of the PNG file
+// PNG spec allows extra data after IEND - most readers ignore it
 pub fn embed_aimg_into_png(png_data: &[u8], container: &AiContainer) -> Result<Vec<u8>, ImageCodecError> {
     let container_bytes = container.serialize()?;
     
-    // Create a custom chunk: length (4) + 'aImG' (4) + data + CRC (4)
-    let chunk_len = container_bytes.len() as u32;
-    let mut chunk = Vec::new();
-    chunk.extend_from_slice(&chunk_len.to_be_bytes());
-    chunk.extend_from_slice(b"aImG");
-    chunk.extend_from_slice(&container_bytes);
+    println!("DEBUG: Embedding {} bytes of metadata into PNG", container_bytes.len());
     
-    // Calculate CRC (from chunk type + data)
-    let crc_data = &chunk[4..]; // Skip the length field
-    let crc = crc32fast::hash(crc_data);
-    chunk.extend_from_slice(&crc.to_be_bytes());
+    // Just append the metadata at the end with a marker
+    let mut result = Vec::with_capacity(png_data.len() + 8 + container_bytes.len());
+    result.extend_from_slice(png_data);
     
-    // Insert before IEND chunk or append at the end
-    let mut output = Vec::new();
+    // Add a marker so we can find it later
+    result.extend_from_slice(b"AIMF");  // 4-byte marker
+    result.extend_from_slice(&(container_bytes.len() as u32).to_le_bytes());  // 4-byte length
+    result.extend_from_slice(&container_bytes);
     
-    if let Some(iend_pos) = find_png_chunk(png_data, b"IEND") {
-        output.extend_from_slice(&png_data[..iend_pos]);
-        output.extend_from_slice(&chunk);
-        output.extend_from_slice(&png_data[iend_pos..]);
-    } else {
-        // No IEND found, just append
-        output.extend_from_slice(png_data);
-        output.extend_from_slice(&chunk);
-    }
+    println!("DEBUG: Result size: {} bytes", result.len());
     
-    Ok(output)
+    Ok(result)
 }
 
 pub fn extract_aimg_from_png(png_data: &[u8]) -> Result<AiContainer, ImageCodecError> {
-    let mut pos = 8; // Skip PNG signature (8 bytes)
+    println!("DEBUG: Looking for AIMF marker in PNG of size {}", png_data.len());
     
-    while pos + 8 <= png_data.len() {
-        let chunk_len = u32::from_be_bytes([
-            png_data[pos], png_data[pos+1], png_data[pos+2], png_data[pos+3]
-        ]) as usize;
-        let chunk_type = &png_data[pos+4..pos+8];
-        
-        if chunk_type == b"aImG" && pos + 8 + chunk_len <= png_data.len() {
-            let chunk_data = &png_data[pos+8..pos+8+chunk_len];
-            return Ok(AiContainer::deserialize(chunk_data)?);
-        }
-        
-        // Move to next chunk: skip length (4) + type (4) + data + CRC (4)
-        pos += 12 + chunk_len;
-        
-        if pos >= png_data.len() {
+    // Simple linear search for the marker
+    let marker = b"AIMF";
+    
+    for i in 0..png_data.len().saturating_sub(8) {
+        if &png_data[i..i+4] == marker {
+            println!("DEBUG: Found AIMF marker at offset {}", i);
+            
+            // Read the length (4 bytes after marker)
+            let len_bytes: [u8; 4] = png_data[i+4..i+8].try_into().unwrap();
+            let data_len = u32::from_le_bytes(len_bytes) as usize;
+            
+            println!("DEBUG: Data length: {} bytes", data_len);
+            
+            let start = i + 8;
+            let end = start + data_len;
+            
+            if end <= png_data.len() {
+                let container_bytes = &png_data[start..end];
+                println!("DEBUG: Extracted {} bytes of container data", container_bytes.len());
+                println!("DEBUG: First few bytes: {:02x?}", &container_bytes[0..20.min(container_bytes.len())]);
+                
+                return Ok(AiContainer::deserialize(container_bytes)?);
+            } else {
+                println!("DEBUG: Invalid - end would be {} but file length is {}", end, png_data.len());
+            }
             break;
         }
     }
     
+    println!("DEBUG: No AIMF marker found in file");
     Err(ImageCodecError::NoAimChunk)
 }
 
-fn find_png_chunk(data: &[u8], chunk_type: &[u8; 4]) -> Option<usize> {
-    let mut pos = 8; // Skip PNG signature
-    
-    while pos + 8 <= data.len() {
-        let chunk_len = u32::from_be_bytes([
-            data[pos], data[pos+1], data[pos+2], data[pos+3]
-        ]) as usize;
-        let current_type = &data[pos+4..pos+8];
-        
-        if current_type == chunk_type {
-            return Some(pos);
-        }
-        
-        pos += 12 + chunk_len;
-        
-        if pos >= data.len() {
-            break;
-        }
-    }
-    
-    None
-}
 pub fn encode_frame_to_png(frame: &Frame) -> Result<Vec<u8>, ImageCodecError> {
     let mut buffer = Vec::new();
     
@@ -112,14 +88,42 @@ pub fn encode_frame_to_png(frame: &Frame) -> Result<Vec<u8>, ImageCodecError> {
             .write_image_data(&frame.data)
             .map_err(|e| ImageCodecError::PngError(e.to_string()))?;
             
-        // Finish writing and drop writer before trying to return buffer
         writer.finish()
             .map_err(|e| ImageCodecError::PngError(e.to_string()))?;
-    } // cursor and writer are dropped here, releasing the borrow on buffer
+    }
     
     Ok(buffer)
 }
 
-
-
-
+pub fn replace_aimg_metadata(png_data: &[u8], new_container: &AiContainer) -> Result<Vec<u8>, ImageCodecError> {
+    let new_container_bytes = new_container.serialize()?;
+    
+    // Find existing metadata marker
+    let marker = b"AIMF";
+    for i in 0..png_data.len().saturating_sub(8) {
+        if &png_data[i..i+4] == marker {
+            println!("DEBUG: Found existing marker at offset {}, replacing metadata", i);
+            
+            // Get the old data length
+            let old_len = u32::from_le_bytes(png_data[i+4..i+8].try_into().unwrap()) as usize;
+            
+            // Build new file: everything before marker + new marker + new data
+            let mut result = png_data[0..i].to_vec();
+            result.extend_from_slice(b"AIMF");
+            result.extend_from_slice(&(new_container_bytes.len() as u32).to_le_bytes());
+            result.extend_from_slice(&new_container_bytes);
+            
+            // Add anything after the old metadata
+            let remaining_start = i + 8 + old_len;
+            if remaining_start < png_data.len() {
+                result.extend_from_slice(&png_data[remaining_start..]);
+            }
+            
+            return Ok(result);
+        }
+    }
+    
+    // No existing metadata, just append
+    println!("DEBUG: No existing marker found, appending new metadata");
+    embed_aimg_into_png(png_data, new_container)
+}

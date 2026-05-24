@@ -9,3 +9,7 @@ sha2 = "0.10"
 thiserror = "2"
 anyhow = "1.0"        # easy error propagation (optional)
 byteorder = "1.5"     # read/write bytes safely
+
+# Add this for signatures
+ed25519-dalek = { version = "2.0", features = ["rand_core"] }
+rand = "0.8"

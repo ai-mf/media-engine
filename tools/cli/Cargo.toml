@@ -45,6 +45,7 @@ audio_codec = { path = "../../codecs/audio_codec" }
 video_codec = { path = "../../codecs/video_codec" }
 
 clap = { workspace = true }
+ed25519-dalek = { workspace = true }
 anyhow = { workspace = true }
 thiserror = { workspace = true }
 serde_json = { workspace = true }

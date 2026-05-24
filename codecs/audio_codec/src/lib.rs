@@ -17,6 +17,7 @@ pub enum AudioCodecError {
     HexError(#[from] hex::FromHexError),
 }
 
+/*
 pub fn embed_aaud_into_wav(
     wav_data: &[u8],
     container: &AiContainer,
@@ -41,8 +42,45 @@ pub fn embed_aaud_into_wav(
 
     Ok(result)
 }
+*/
 
-pub fn extract_aaud_from_wav(wav_data: &[u8]) -> Result<AiContainer, AudioCodecError> {
+
+/*pub fn embed_aaud_into_wav(wav_data: &[u8], container: &AiContainer)-> Result<Vec<u8>, AudioCodecError> {
+    let container_bytes = container.serialize()?;
+    
+    let mut result = wav_data.to_vec();
+    
+    // Add custom LIST chunk (WAV standard allows this)
+    // LIST chunk format: "LIST" + size + "INFO" + data
+    let list_data = format!("AIMF={}", hex::encode(&container_bytes));
+    let list_size = (list_data.len() + 4) as u32; // +4 for "INFO"
+    
+    result.extend_from_slice(b"LIST");
+    result.extend_from_slice(&list_size.to_le_bytes());
+    result.extend_from_slice(b"INFO");
+    result.extend_from_slice(list_data.as_bytes());
+    
+    Ok(result)
+}
+*/
+
+pub fn embed_aaud_into_wav(wav_data: &[u8], container: &AiContainer) -> Result<Vec<u8>, AudioCodecError> {
+    let container_bytes = container.serialize()?;
+    
+    let mut result = wav_data.to_vec();
+    
+    // Use AAUD chunk with RAW bytes (not hex)
+    let chunk_id = b"AAUD";
+    let chunk_size = container_bytes.len() as u32;
+    
+    result.extend_from_slice(chunk_id);
+    result.extend_from_slice(&chunk_size.to_le_bytes());
+    result.extend_from_slice(&container_bytes);  // Raw bytes, not hex!
+    
+    Ok(result)
+}
+
+/*pub fn extract_aaud_from_wav(wav_data: &[u8]) -> Result<AiContainer, AudioCodecError> {
     let mut i = 0;
     
     // WAV files start with "RIFF" header
@@ -76,6 +114,31 @@ pub fn extract_aaud_from_wav(wav_data: &[u8]) -> Result<AiContainer, AudioCodecE
         }
         
         // Move to next chunk (8 byte header + chunk size)
+        i += 8 + chunk_size;
+    }
+    
+    Err(AudioCodecError::NoAaudTag)
+}
+*/
+
+pub fn extract_aaud_from_wav(wav_data: &[u8]) -> Result<AiContainer, AudioCodecError> {
+    let mut i = 12; // Skip RIFF header
+    
+    while i + 8 <= wav_data.len() {
+        let chunk_id = &wav_data[i..i+4];
+        let chunk_size = u32::from_le_bytes(wav_data[i+4..i+8].try_into().unwrap()) as usize;
+        
+        if chunk_id == b"AAUD" {
+            let start = i + 8;
+            let end = start + chunk_size;
+            
+            if end <= wav_data.len() {
+                let container_bytes = &wav_data[start..end];
+                // Direct deserialization (no hex decode!)
+                return Ok(AiContainer::deserialize(container_bytes)?);
+            }
+        }
+        
         i += 8 + chunk_size;
     }
     

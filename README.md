@@ -50,6 +50,10 @@ cd media-engine/ai
 # Build all components in release mode
 cargo build --release
 
+# Generate key pair
+cargo run --bin aimf -- gen-key --output private.key
+
+
 # Build individual tools
 cargo build --bin aimf   # Main tool (recommended)
 cargo build --bin aimg   # Image-specific tool
@@ -293,6 +297,9 @@ cargo run --example ai_generate_video_simple
 
 # Test the CLI
 cargo run --bin aimf -- --help
+
+# Generate key pair
+cargo run --bin aimf -- gen-key --output private.key
 
 Troubleshooting
 "Incomplete header" error

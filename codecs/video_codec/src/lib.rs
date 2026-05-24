@@ -47,6 +47,7 @@ pub fn embed_avid_into_mp4(mp4_data: &[u8], container: &AiContainer) -> Result<V
 }
 
 pub fn extract_avid_from_mp4(mp4_data: &[u8]) -> Result<AiContainer, VideoCodecError> {
+    const MAX_METADATA_SIZE: usize = 10_000_000; // 10MB max
     let mut pos = 0;
 
     while pos + 8 <= mp4_data.len() {
@@ -65,8 +66,9 @@ pub fn extract_avid_from_mp4(mp4_data: &[u8]) -> Result<AiContainer, VideoCodecE
         }
 
         let box_type = &mp4_data[pos+4..pos+8];
+        let box_uuid = &mp4_data[pos+8..pos+24];
 
-        if box_type == b"uuid" && pos + 24 <= mp4_data.len() {
+        /*if box_type == b"uuid" && pos + 24 <= mp4_data.len() {
             let box_uuid = &mp4_data[pos+8..pos+24];
 
             if box_uuid == AVID_UUID {
@@ -76,6 +78,16 @@ pub fn extract_avid_from_mp4(mp4_data: &[u8]) -> Result<AiContainer, VideoCodecE
                 // Don't slice it - it already contains the complete serialized data
                 return Ok(AiContainer::deserialize(container_bytes)?);
             }
+        }*/
+        if box_type == b"uuid" && box_uuid == AVID_UUID {
+            let container_bytes = &mp4_data[pos+24..pos+box_size];
+            
+            // ✅ Add size validation
+            if container_bytes.len() < 4 || container_bytes.len() > MAX_METADATA_SIZE {
+                continue; // Skip invalid sizes
+            }
+            
+            return Ok(AiContainer::deserialize(container_bytes)?);
         }
 
         pos += box_size;
