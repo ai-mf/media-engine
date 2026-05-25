@@ -37,10 +37,11 @@ name = "ai_generate_video_simple"
 path = "examples/ai_generate_video_simple.rs"
 
 [dependencies]
-media_engine_core = { path = "../../media_engine_core" }
-image_codec = { path = "../../codecs/image_codec" }
-audio_codec = { path = "../../codecs/audio_codec" }
-video_codec = { path = "../../codecs/video_codec" }
+media_engine_core = { path = "../../media_engine_core", version = "0.1.0"}
+image_codec = { path = "../../codecs/image_codec", version = "0.1.0"}
+audio_codec = { path = "../../codecs/audio_codec", version = "0.1.0"}
+video_codec = { path = "../../codecs/video_codec", version = "0.1.0"}
+
 
 clap = { workspace = true }
 ed25519-dalek = { workspace = true }

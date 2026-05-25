@@ -14,8 +14,10 @@ name = "avid"
 path = "src/bin/avid.rs"
 
 [dependencies]
-media_engine_core = { path = "../../media_engine_core" }
-video_codec = { path = "../../codecs/video_codec" }
+media_engine_core = { path = "../../media_engine_core", version = "0.1.0"}
+video_codec = { path = "../../codecs/video_codec", version = "0.1.0"}
+
+
 
 clap = { workspace = true }
 ed25519-dalek = { workspace = true }
