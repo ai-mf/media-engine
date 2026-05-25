@@ -1,0 +1,52 @@
+# tools/aimf-cli/Cargo.toml (main tool)
+[package]
+name = "aimf-cli"
+version = "0.1.0"
+edition = "2024"
+description = "AIMF - Universal AI Media Format container"
+license = "Apache-2.0"
+authors = ["AI MEDIA FORMAT CONTRIBUTORS <aimediaformat@gmail.com>"]
+repository = "https://github.com/ai-mf/media-engine/"
+homepage = "https://aimf.io"
+documentation = "https://docs.aimf.io"
+keywords = ["ai", "media", "format", "container", "metadata"]
+categories = ["multimedia", "command-line-utilities"]
+
+
+
+[[bin]]
+name = "aimf"
+path = "src/bin/aimf.rs"
+
+
+[[example]]
+name = "ai_generate_image"
+path = "examples/ai_generate_image.rs"
+
+[[example]]
+name = "ai_generate_audio"
+path = "examples/ai_generate_audio.rs"
+
+[[example]]
+name = "ai_generate_video"
+path = "examples/ai_generate_video.rs"
+
+
+[[example]]
+name = "ai_generate_video_simple"
+path = "examples/ai_generate_video_simple.rs"
+
+[dependencies]
+media_engine_core = { path = "../../media_engine_core" }
+image_codec = { path = "../../codecs/image_codec" }
+audio_codec = { path = "../../codecs/audio_codec" }
+video_codec = { path = "../../codecs/video_codec" }
+
+clap = { workspace = true }
+ed25519-dalek = { workspace = true }
+anyhow = { workspace = true }
+serde_json = { workspace = true }
+image = { workspace = true }
+hound = { workspace = true }
+tempfile = "3.8"
+hex = { workspace = true }

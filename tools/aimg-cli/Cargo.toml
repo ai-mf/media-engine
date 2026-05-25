@@ -1,0 +1,25 @@
+# tools/aimg-cli/Cargo.toml (image tool)  
+[package]
+name = "aimg-cli"
+version = "0.1.0"
+edition = "2024"
+description = "AIMG - AI Image Format container (image-only)"
+license = "Apache-2.0"
+authors = ["AI MEDIA FORMAT CONTRIBUTORS <aimediaformat@gmail.com>"]
+repository = "https://github.com/ai-mf/media-engine/"
+keywords = ["ai", "image", "format", "container"]
+
+[[bin]]
+name = "aimg"
+path = "src/bin/aimg.rs"
+
+[dependencies]
+media_engine_core = { path = "../../media_engine_core" }
+image_codec = { path = "../../codecs/image_codec" }
+
+clap = { workspace = true }
+ed25519-dalek = { workspace = true }
+anyhow = { workspace = true }
+serde_json = { workspace = true }
+hound = { workspace = true }
+hex = { workspace = true }

@@ -90,10 +90,21 @@ Format-Specific Tools
 bash
 
 # Image
-aimg create input.png --output output.aimg --model MODEL --version VERSION
+aimg create input.png --output output.aimg --model MODEL --version VERSION 
 
 # Audio
 aaud create input.mp3 --output output.aaud --model MODEL --version VERSION
 
 # Video
 avid create input.mp4 --output output.avid --model MODEL --version VERSION
+
+OR WITH PRIVATE-KEY
+
+# Image
+aimg create input.png --output output.aimg --model MODEL --version VERSION  --key PRIVATE-KEY
+
+# Audio
+aaud create input.mp3 --output output.aaud --model MODEL --version VERSION  --key PRIVATE-KEY
+
+# Video
+avid create input.mp4 --output output.avid --model MODEL --version VERSION  --key PRIVATE-KEY

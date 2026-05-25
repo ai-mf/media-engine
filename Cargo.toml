@@ -4,7 +4,10 @@ members = [
     "codecs/image_codec",
     "codecs/audio_codec",
     "codecs/video_codec",
-    "tools/cli"
+    "tools/aaud-cli",        # paid audio
+    "tools/aimf-cli",        # free
+    "tools/aimg-cli",        # paid image  
+    "tools/avid-cli",        # paid video
 ]
 resolver = "2"
 [workspace.dependencies]
@@ -17,6 +20,8 @@ rand = "0.8"
 image = "0.25"
 hound = "3.5"
 thiserror = "2"
+pyo3 = "0.21"  # Add this for Python bindings
+hex = "0.4"
 
 #clap = { version = "4.0", features = ["derive"] }
 #image = "0.25"

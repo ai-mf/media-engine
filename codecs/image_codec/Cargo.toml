@@ -1,11 +1,18 @@
 [package]
 name = "image_codec"
 version = "0.1.0"
-edition = "2024"
+edition = "2021"
+description = "Codec for AIMF image format"
+license = "Apache-2.0"
+authors = ["AI MEDIA FORMAT CONTRIBUTORS <aimediaformat@gmail.com>"]
+repository = "https://github.com/ai-mf/media-engine/"
 
 [dependencies]
 media_engine_core = { path = "../../media_engine_core" }
-image = "0.25"
-crc32fast = "1.3"
-thiserror = "2"
+serde = { workspace = true }
+serde_json = { workspace = true }
+anyhow = { workspace = true }
+hound = { workspace = true }
+hex = { workspace = true }
+thiserror = { workspace = true }
 png = "0.18.1"

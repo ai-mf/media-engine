@@ -1,0 +1,14 @@
+{
+  "name": "aimf-cli",
+  "version": "0.1.0",
+  "description": "AI Media Format - CLI tool",
+  "bin": {
+    "aimf": "bin/aimf-wrapper.js"
+  },
+  "scripts": {
+    "postinstall": "node scripts/install-aimf.js"
+  },
+  "keywords": ["aimf", "ai", "media", "format"],
+  "author": "Your Name",
+  "license": "MIT"
+}

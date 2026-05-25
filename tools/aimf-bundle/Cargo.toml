@@ -1,0 +1,14 @@
+[package]
+name = "aimf"
+version = "0.1.0"
+edition = "2024"
+description = "AIMF - Complete AI Media Format tools (includes aimf, aaud, aimg, avid)"
+license = "Apache-2.0"
+authors = ["AI MEDIA FORMAT CONTRIBUTORS <aimediaformat@gmail.com>"]
+repository = "https://github.com/ai-mf/media-engine/"
+
+[dependencies]
+aimf-cli = { path = "../aimf-cli" }
+aaud-cli = { path = "../aaud-cli" }
+aimg-cli = { path = "../aimg-cli" }
+avid-cli = { path = "../avid-cli" }

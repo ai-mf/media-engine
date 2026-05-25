@@ -1,0 +1,19 @@
+version: '3.8'
+
+services:
+  aimf-verifier:
+    image: aimf/verifier:latest
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./media:/media
+    environment:
+      - RUST_LOG=info
+    command: serve --port 8080 --verify-all
+
+  aimf-worker:
+    image: aimf/worker:latest
+    volumes:
+      - ./input:/input
+      - ./output:/output
+    command: watch --input /input --output /output

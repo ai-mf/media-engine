@@ -1,18 +1,51 @@
-# Rust build artifacts
-/target/
+# Rust
+target/
 Cargo.lock
+**/*.rs.bk
+
+# Generated media files
+*.aimg
+*.aaud
+*.avid
+*.png
+*.wav
+*.mp4
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# npm
+node_modules/
+package-lock.json
+
+# Docker
+*.tar.gz
+
+# Keys (CRITICAL - don't commit these!)
+*.key
+*.pem
+*.priv
 private.key
 
-# IDE files
+# IDE
 .vscode/
 .idea/
 *.swp
 *.swo
 *~
 
-# OS files
+# OS
 .DS_Store
 Thumbs.db
+
+# Test outputs
+test_*
+output_*
 
 # Test artifacts
 *.received/

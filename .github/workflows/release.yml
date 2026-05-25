@@ -1,0 +1,67 @@
+name: Build Production Binaries
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:  # Manual trigger for testing
+
+jobs:
+  build:
+    name: Build ${{ matrix.target }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        include:
+          - target: x86_64-unknown-linux-gnu
+            os: ubuntu-latest
+            artifact: aimf-linux-x86_64
+          - target: aarch64-unknown-linux-gnu
+            os: ubuntu-latest
+            artifact: aimf-linux-arm64
+          - target: x86_64-apple-darwin
+            os: macos-latest
+            artifact: aimf-macos-x86_64
+          - target: aarch64-apple-darwin
+            os: macos-latest
+            artifact: aimf-macos-arm64
+          - target: x86_64-pc-windows-msvc
+            os: windows-latest
+            artifact: aimf-windows-x86_64.exe
+
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Install Rust
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          target: ${{ matrix.target }}
+          override: true
+      
+      - name: Build release binary
+        run: cargo build --release --target ${{ matrix.target }} --bin aimf
+      
+      - name: Upload binary
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.artifact }}
+          path: target/${{ matrix.target }}/release/aimf${{ contains(matrix.target, 'windows') && '.exe' || '' }}
+
+  create-release:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+      
+      - name: Create Release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: |
+            aimf-linux-x86_64/aimf
+            aimf-linux-arm64/aimf
+            aimf-macos-x86_64/aimf
+            aimf-macos-arm64/aimf
+            aimf-windows-x86_64.exe/aimf.exe
+          generate_release_notes: true
+          prerelease: ${{ contains(github.ref, '-beta') }}

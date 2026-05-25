@@ -14,7 +14,6 @@ pub enum ImageCodecError {
     NoAimChunk,
 }
 
-// SIMPLE: Append metadata at the end of the PNG file
 // PNG spec allows extra data after IEND - most readers ignore it
 pub fn embed_aimg_into_png(png_data: &[u8], container: &AiContainer) -> Result<Vec<u8>, ImageCodecError> {
     let container_bytes = container.serialize()?;

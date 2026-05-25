@@ -1,0 +1,3 @@
+[console_scripts]
+aimf = aimf.__main__:main
+
