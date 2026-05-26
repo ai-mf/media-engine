@@ -1,6 +1,6 @@
 # tools/aaud-cli/Cargo.toml (audio tool)
 [package]
-name = "aaud-cli"
+name = "aimf-audio-cli"
 version = "0.1.0"
 edition = "2024"
 
@@ -16,8 +16,8 @@ path = "src/bin/aaud.rs"
 
 
 [dependencies]
-media_engine_core = { path = "../../media_engine_core", version = "0.1.0"}
-audio_codec = { path = "../../codecs/audio_codec", version = "0.1.0"}
+aimf_core = { path = "../../media_engine_core", version = "0.1.0"}
+aimf_audio_codec = { path = "../../codecs/audio_codec", version = "0.1.0"}
 
 
 clap = { workspace = true }

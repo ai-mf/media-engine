@@ -1,6 +1,6 @@
 use png::{Encoder, ColorType, BitDepth};
 use std::io::Cursor;
-use media_engine_core::{AiContainer, CoreError, Frame};
+use aimf_core::{AiContainer, CoreError, Frame};
 
 #[derive(Debug, thiserror::Error)]
 pub enum ImageCodecError {

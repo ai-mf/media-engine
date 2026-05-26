@@ -1,5 +1,5 @@
 // media-engine/codecs/video_codec/src/lib.rs
-use media_engine_core::{AiContainer, CoreError};
+use aimf_core::{AiContainer, CoreError};
 
 #[derive(Debug, thiserror::Error)]
 pub enum VideoCodecError {

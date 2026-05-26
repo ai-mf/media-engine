@@ -1,6 +1,6 @@
 # tools/avid-cli/Cargo.toml (video tool)
 [package]
-name = "avid-cli"
+name = "aimf-video-cli"
 version = "0.1.0"
 edition = "2024"
 description = "AVID - AI Video Format container (video-only)"
@@ -14,8 +14,8 @@ name = "avid"
 path = "src/bin/avid.rs"
 
 [dependencies]
-media_engine_core = { path = "../../media_engine_core", version = "0.1.0"}
-video_codec = { path = "../../codecs/video_codec", version = "0.1.0"}
+aimf_core = { path = "../../media_engine_core", version = "0.1.0"}
+aimf_video_codec = { path = "../../codecs/video_codec", version = "0.1.0"}
 
 
 
@@ -24,6 +24,7 @@ ed25519-dalek = { workspace = true }
 anyhow = { workspace = true }
 serde_json = { workspace = true }
 image = { workspace = true }
+ffmpeg-sidecar = { workspace = true }
 hound = { workspace = true }
-tempfile = "3.8"
+tempfile = { workspace = true }
 hex = { workspace = true }

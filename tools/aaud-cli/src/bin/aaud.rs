@@ -1,7 +1,7 @@
 // media-engine/tools/cli/src/bin/aaud.rs
 use clap::{Parser, Subcommand};
-use media_engine_core::{AiMetadata, AiContainer, MediaType, PayloadType, CryptoSignature};
-use audio_codec::{embed_aaud_into_wav, samples_to_wav, extract_aaud_from_wav};
+use aimf_core::{AiMetadata, AiContainer, MediaType, PayloadType, CryptoSignature};
+use aimf_audio_codec::{embed_aaud_into_wav, samples_to_wav, extract_aaud_from_wav};
 use std::fs;
 use std::io::{self, Read};
 use anyhow::Result;
@@ -532,7 +532,7 @@ fn main() -> Result<()> {
             let final_bytes = if is_wav {
                 println!("🔊 Preserving WAV format");
                 // Extract the original audio payload
-                audio_codec::embed_aaud_into_wav(&container.payload, &container)?
+                embed_aaud_into_wav(&container.payload, &container)?
             } else {
                 println!("📦 Pure AAUD container format");
                 container.serialize()?

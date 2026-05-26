@@ -1,6 +1,6 @@
 # tools/aimg-cli/Cargo.toml (image tool)  
 [package]
-name = "aimg-cli"
+name = "aimf-image-cli"
 version = "0.1.0"
 edition = "2024"
 description = "AIMG - AI Image Format container (image-only)"
@@ -14,8 +14,8 @@ name = "aimg"
 path = "src/bin/aimg.rs"
 
 [dependencies]
-media_engine_core = { path = "../../media_engine_core", version = "0.1.0"}
-image_codec = { path = "../../codecs/image_codec", version = "0.1.0"}
+aimf_core = { path = "../../media_engine_core", version = "0.1.0"}
+aimf_image_codec = { path = "../../codecs/image_codec", version = "0.1.0"}
 
 clap = { workspace = true }
 ed25519-dalek = { workspace = true }

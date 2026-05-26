@@ -1,5 +1,5 @@
 // media-engine/codecs/audio_codec/src/lib.rs
-use media_engine_core::{AiContainer, CoreError};
+use aimf_core::{AiContainer, CoreError};
 use id3::{{Tag, Version, TagLike, Frame},frame::{Content, ExtendedText}};
 use std::io::{Cursor};
 use hound;

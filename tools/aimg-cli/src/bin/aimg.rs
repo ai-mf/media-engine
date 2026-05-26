@@ -1,7 +1,7 @@
 // media-engine/tools/cli/src/bin/aimg.rs
 use clap::{Parser, Subcommand};
-use media_engine_core::{Frame, AiMetadata, AiContainer, MediaType, PayloadType, CryptoSignature};
-use image_codec::{embed_aimg_into_png, extract_aimg_from_png, encode_frame_to_png};
+use aimf_core::{Frame, AiMetadata, AiContainer, MediaType, PayloadType, CryptoSignature};
+use aimf_image_codec::{embed_aimg_into_png, extract_aimg_from_png, encode_frame_to_png};
 use std::fs;
 use anyhow::Result;
 use std::io::{self, Read};
@@ -508,7 +508,7 @@ fn main() -> Result<()> {
             let final_bytes = if is_png {
                 println!("📸 Preserving PNG format");
                 // Re-embed with signature
-                image_codec::embed_aimg_into_png(&container.payload, &container)?
+                embed_aimg_into_png(&container.payload, &container)?
             } else {
                 println!("📦 Pure AIMG container format");
                 container.serialize()?

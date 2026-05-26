@@ -9,6 +9,6 @@ repository = "https://github.com/ai-mf/media-engine/"
 
 [dependencies]
 aimf-cli = { path = "../aimf-cli", version = "0.1.0"}
-aaud-cli = { path = "../aaud-cli", version = "0.1.0"}
-aimg-cli = { path = "../aimg-cli", version = "0.1.0"}
-avid-cli = { path = "../avid-cli", version = "0.1.0"}
+aimf-audio-cli = { path = "../aaud-cli", version = "0.1.0"}
+aimf-image-cli = { path = "../aimg-cli", version = "0.1.0"}
+aimf-video-cli = { path = "../avid-cli", version = "0.1.0"}

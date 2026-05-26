@@ -8,10 +8,10 @@ use std::io::{Read};
 use tempfile;
 use anyhow::Result;
 
-use audio_codec;
-use image_codec;
-use video_codec;
-use media_engine_core::*; // Assuming you create the validation module
+use aimf_audio_codec;
+use aimf_image_codec;
+use aimf_video_codec;
+use aimf_core::*; // Assuming you create the validation module
 
 
 struct Frame { width: u32, height: u32, data: Vec<u8> }
@@ -438,6 +438,7 @@ fn encode_video_to_mp4(video: &Video) -> anyhow::Result<Vec<u8>> {
     Ok(std::fs::read(&mp4_path)?)
 }
 
+
 // ========== DETECTION ==========
 #[allow(dead_code)]
 enum DetectedType {
@@ -479,15 +480,15 @@ fn detect_type(buffer: &[u8]) -> DetectedType {
 // In aimf.rs, update the extract_container function:
 fn extract_container(data: &[u8]) -> Result<AiContainer> {
     // Try each format detector (embedded formats)
-    if let Ok(c) = image_codec::extract_aimg_from_png(data) {
+    if let Ok(c) = aimf_image_codec::extract_aimg_from_png(data) {
         println!("📸 Detected AIMG format (embedded in PNG)");
         return Ok(c);
     }
-    if let Ok(c) = audio_codec::extract_aaud_from_wav(data) {
+    if let Ok(c) = aimf_audio_codec::extract_aaud_from_wav(data) {
         println!("🔊 Detected AAUD format (embedded in WAV)");
         return Ok(c);
     }
-    if let Ok(c) = video_codec::extract_avid_from_mp4(data) {
+    if let Ok(c) = aimf_video_codec::extract_avid_from_mp4(data) {
         println!("🎬 Detected AVID format (embedded in MP4)");
         return Ok(c);
     }
@@ -682,9 +683,9 @@ fn main() -> Result<()> {
             }
 
             let final_bytes = match media_type {
-                MediaType::Image => image_codec::embed_aimg_into_png(&payload, &container)?,
-                MediaType::Audio => audio_codec::embed_aaud_into_wav(&payload, &container)?,
-                MediaType::Video => video_codec::embed_avid_into_mp4(&payload, &container)?,
+                MediaType::Image => aimf_image_codec::embed_aimg_into_png(&payload, &container)?,
+                MediaType::Audio => aimf_audio_codec::embed_aaud_into_wav(&payload, &container)?,
+                MediaType::Video => aimf_video_codec::embed_avid_into_mp4(&payload, &container)?,
             };
             
             std::fs::write(&output, final_bytes)?;
@@ -737,7 +738,7 @@ fn main() -> Result<()> {
         }
         
         Commands::GenKey { output } => {
-            use media_engine_core::CryptoSignature;
+            use aimf_core::CryptoSignature;
             let keypair = CryptoSignature::generate_keypair();
             
             // Save private key
@@ -774,19 +775,19 @@ fn main() -> Result<()> {
             let final_bytes = if is_png {
                 println!("📸 Preserving PNG format");
                 let png_data = extract_png_data(&data);
-                image_codec::replace_aimg_metadata(&png_data, &container)?
+                aimf_image_codec::replace_aimg_metadata(&png_data, &container)?
             } else if is_wav {
                 println!("🔊 Preserving WAV format");
                 // For WAV, we need a similar replace function
                 // For now, just re-embed
                 let wav_data = extract_wav_data(&data);
-                audio_codec::embed_aaud_into_wav(&wav_data, &container)?
+                aimf_audio_codec::embed_aaud_into_wav(&wav_data, &container)?
             } else if is_mp4 {
                 println!("🎬 Preserving MP4 format");
                 // For MP4, we need a similar replace function
                 // For now, just re-embed
                 let mp4_data = extract_mp4_data(&data);
-                video_codec::embed_avid_into_mp4(&mp4_data, &container)?
+                aimf_video_codec::embed_avid_into_mp4(&mp4_data, &container)?
             } else {
                 println!("📦 Pure AIMF container format");
                 container.serialize()?

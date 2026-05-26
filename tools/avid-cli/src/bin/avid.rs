@@ -1,7 +1,7 @@
 // media-engine/tools/cli/src/bin/avid.rs
 use clap::{Parser, Subcommand};
-use media_engine_core::{AiMetadata, AiContainer, MediaType, PayloadType, CryptoSignature};
-use video_codec::{embed_avid_into_mp4, extract_avid_from_mp4};
+use aimf_core::{AiMetadata, AiContainer, MediaType, PayloadType, CryptoSignature};
+use aimf_video_codec::{embed_avid_into_mp4, extract_avid_from_mp4};
 use std::fs;
 use anyhow::Result;
 use std::process::{Command};
@@ -751,7 +751,7 @@ fn main() -> Result<()> {
             
             let final_bytes = if is_mp4 {
                 println!("🎬 Preserving MP4 format");
-                video_codec::embed_avid_into_mp4(&container.payload, &container)?
+                embed_avid_into_mp4(&container.payload, &container)?
             } else {
                 println!("📦 Pure AVID container format");
                 container.serialize()?

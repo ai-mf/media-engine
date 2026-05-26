@@ -197,7 +197,7 @@ done
 ### Integration with Existing Systems
 
 ```rust
-use media_engine_core::{AiContainer, AiMetadata, CryptoSignature};
+use aimf_core::{AiContainer, AiMetadata, CryptoSignature};
 use ed25519_dalek::SigningKey;
 
 // Load your private key
@@ -467,8 +467,8 @@ cargo run --bin aimf -- verify tampered.avid
 ## API Integration (Rust)
 
 ```rust
-use media_engine_core::{AiContainer, AiMetadata, MediaType, PayloadType, CryptoSignature};
-use video_codec::embed_avid_into_mp4;
+use aimf_core::{AiContainer, AiMetadata, MediaType, PayloadType, CryptoSignature};
+use aimf_video_codec::embed_avid_into_mp4;
 use ed25519_dalek::SigningKey;
 
 // Load your signing key
@@ -512,7 +512,7 @@ if result.hash_valid && result.signature_valid == Some(true) {
 ```
 media-engine/
 media-engine/
-├── media_engine_core/      # Shared logic (serialization, crypto)
+├── aimf_core/      # Shared logic (serialization, crypto)
 ├── codecs/                 # Format-specific codecs
 │   ├── image_codec/        # AIMG + PNG bridge
 │   ├── audio_codec/        # AAUD + WAV bridge

@@ -37,10 +37,10 @@ name = "ai_generate_video_simple"
 path = "examples/ai_generate_video_simple.rs"
 
 [dependencies]
-media_engine_core = { path = "../../media_engine_core", version = "0.1.0"}
-image_codec = { path = "../../codecs/image_codec", version = "0.1.0"}
-audio_codec = { path = "../../codecs/audio_codec", version = "0.1.0"}
-video_codec = { path = "../../codecs/video_codec", version = "0.1.0"}
+aimf_core = { path = "../../media_engine_core", version = "0.1.0"}
+aimf_image_codec = { path = "../../codecs/image_codec", version = "0.1.0"}
+aimf_audio_codec = { path = "../../codecs/audio_codec", version = "0.1.0"}
+aimf_video_codec = { path = "../../codecs/video_codec", version = "0.1.0"}
 
 
 clap = { workspace = true }
@@ -49,5 +49,6 @@ anyhow = { workspace = true }
 serde_json = { workspace = true }
 image = { workspace = true }
 hound = { workspace = true }
-tempfile = "3.8"
+tempfile = { workspace = true }
 hex = { workspace = true }
+ffmpeg-sidecar = { workspace = true }
