@@ -1,5 +1,5 @@
 [package]
-name = "aimf"
+name = "aimf-bundle"
 version = "0.1.0"
 edition = "2024"
 description = "AIMF - Complete AI Media Format tools (includes aimf, aaud, aimg, avid)"
