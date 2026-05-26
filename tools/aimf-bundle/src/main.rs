@@ -3,12 +3,17 @@
 // This installs: aimf, aaud, aimg, avid
 
 fn main() {
-    println!("AIMF Bundle installed!");
-    println!("Available commands:");
-    println!("  aimf  - Universal tool (handles all media types)");
-    println!("  aaud  - Audio-only tool");
-    println!("  aimg  - Image-only tool");
-    println!("  avid  - Video-only tool");
+    println!("╔══════════════════════════════════════════════════════╗");
+    println!("║           AIMF Bundle Installed Successfully         ║");
+    println!("╚══════════════════════════════════════════════════════╝");
     println!();
-    println!("Try: aimf --help");
+    println!("📦 Installed tools:");
+    println!("   • aimf  - Universal AI Media Format tool");
+    println!("   • aaud  - Audio-only AI Media Format tool");
+    println!("   • aimg  - Image-only AI Media Format tool");
+    println!("   • avid  - Video-only AI Media Format tool");
+    println!();
+    println!("💡 Quick start:");
+    println!("   aimf --help");
+    println!();
 }
