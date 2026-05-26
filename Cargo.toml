@@ -8,6 +8,7 @@ members = [
     "tools/aimf-cli",        # free
     "tools/aimg-cli",        # paid image  
     "tools/avid-cli",        # paid video
+    "tools/aimf-bundle",        # paid video
 ]
 resolver = "2"
 [workspace.dependencies]

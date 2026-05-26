@@ -7,6 +7,10 @@ license = "Apache-2.0"
 authors = ["AI MEDIA FORMAT CONTRIBUTORS <aimediaformat@gmail.com>"]
 repository = "https://github.com/ai-mf/media-engine/"
 
+[[bin]]
+name = "aimf-bundle"
+path = "src/main.rs"
+
 [dependencies]
 aimf-cli = { path = "../aimf-cli", version = "0.1.0"}
 aimf-audio-cli = { path = "../aaud-cli", version = "0.1.0"}
