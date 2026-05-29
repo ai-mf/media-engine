@@ -1,0 +1,123 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>UTImportedTypeDeclarations</key>
+    <array>
+        <!-- AVID Video -->
+        <dict>
+            <key>UTTypeIdentifier</key>
+            <string>com.aimf.video</string>
+            <key>UTTypeTagSpecification</key>
+            <dict>
+                <key>public.filename-extension</key>
+                <array>
+                    <string>avid</string>
+                </array>
+                <key>public.mime-type</key>
+                <array>
+                    <string>video/avid</string>
+                </array>
+            </dict>
+            <key>UTTypeDescription</key>
+            <string>AIMF AI-Generated Video</string>
+            <key>UTTypeIconFile</key>
+            <string>avid-icon</string>
+            <key>UTTypeReferenceURL</key>
+            <string>https://github.com/ai-mf/media-engine</string>
+            <key>UTTypeConformsTo</key>
+            <array>
+                <string>public.mpeg-4</string>
+                <string>public.video</string>
+            </array>
+        </dict>
+        
+        <!-- AIMG Image -->
+        <dict>
+            <key>UTTypeIdentifier</key>
+            <string>com.aimf.image</string>
+            <key>UTTypeTagSpecification</key>
+            <dict>
+                <key>public.filename-extension</key>
+                <array>
+                    <string>aimg</string>
+                </array>
+                <key>public.mime-type</key>
+                <array>
+                    <string>image/aimg</string>
+                </array>
+            </dict>
+            <key>UTTypeDescription</key>
+            <string>AIMF AI-Generated Image</string>
+            <key>UTTypeIconFile</key>
+            <string>aimg-icon</string>
+            <key>UTTypeConformsTo</key>
+            <array>
+                <string>public.png</string>
+                <string>public.image</string>
+            </array>
+        </dict>
+        
+        <!-- AAUD Audio -->
+        <dict>
+            <key>UTTypeIdentifier</key>
+            <string>com.aimf.audio</string>
+            <key>UTTypeTagSpecification</key>
+            <dict>
+                <key>public.filename-extension</key>
+                <array>
+                    <string>aaud</string>
+                </array>
+                <key>public.mime-type</key>
+                <array>
+                    <string>audio/aaud</string>
+                </array>
+            </dict>
+            <key>UTTypeDescription</key>
+            <string>AIMF AI-Generated Audio</string>
+            <key>UTTypeIconFile</key>
+            <string>aaud-icon</string>
+            <key>UTTypeConformsTo</key>
+            <array>
+                <string>public.wav</string>
+                <string>public.audio</string>
+            </array>
+        </dict>
+    </array>
+    
+    <!-- Document types for app integration -->
+    <key>CFBundleDocumentTypes</key>
+    <array>
+        <dict>
+            <key>CFBundleTypeName</key>
+            <string>AIMF Video</string>
+            <key>LSItemContentTypes</key>
+            <array>
+                <string>com.aimf.video</string>
+            </array>
+            <key>LSHandlerRank</key>
+            <string>Default</string>
+        </dict>
+        <dict>
+            <key>CFBundleTypeName</key>
+            <string>AIMF Image</string>
+            <key>LSItemContentTypes</key>
+            <array>
+                <string>com.aimf.image</string>
+            </array>
+            <key>LSHandlerRank</key>
+            <string>Default</string>
+        </dict>
+        <dict>
+            <key>CFBundleTypeName</key>
+            <string>AIMF Audio</string>
+            <key>LSItemContentTypes</key>
+            <array>
+                <string>com.aimf.audio</string>
+            </array>
+            <key>LSHandlerRank</key>
+            <string>Default</string>
+        </dict>
+    </array>
+</dict>
+</plist>

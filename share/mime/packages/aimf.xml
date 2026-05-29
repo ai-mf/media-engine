@@ -1,0 +1,72 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<mime-info xmlns="http://www.freedesktop.org/standards/shared-mime-info">
+  
+  <!-- AVID: AI Video (MP4 container) -->
+  <mime-type type="video/avid">
+    <comment>AIMF AI-generated Video</comment>
+    <comment xml:lang="de">AIMF KI-generiertes Video</comment>
+    <comment xml:lang="fr">Vidéo générée par IA AIMF</comment>
+    <sub-class-of type="video/mp4"/>
+    <glob pattern="*.avid"/>
+    <glob pattern="*.AVID"/>
+    <magic priority="60">
+      <!-- MP4 ftyp box with AVID UUID -->
+      <match type="string" value="ftyp" offset="4">
+        <match type="string" value="mp4" offset="8"/>
+      </match>
+    </magic>
+    <icon name="video-avid"/>
+  </mime-type>
+
+  <!-- AIMG: AI Image (PNG container) -->
+  <mime-type type="image/aimg">
+    <comment>AIMF AI-generated Image</comment>
+    <comment xml:lang="de">AIMF KI-generiertes Bild</comment>
+    <comment xml:lang="fr">Image générée par IA AIMF</comment>
+    <sub-class-of type="image/png"/>
+    <glob pattern="*.aimg"/>
+    <glob pattern="*.AIMG"/>
+    <magic priority="60">
+      <!-- PNG signature -->
+      <match type="string" value="\x89PNG" offset="0">
+        <match type="string" value="tEXt" offset="12">
+          <match type="string" value="AIMG" offset="16"/>
+        </match>
+      </match>
+    </magic>
+    <icon name="image-aimg"/>
+  </mime-type>
+
+  <!-- AAUD: AI Audio (WAV container) -->
+  <mime-type type="audio/aaud">
+    <comment>AIMF AI-generated Audio</comment>
+    <comment xml:lang="de">AIMF KI-generiertes Audio</comment>
+    <comment xml:lang="fr">Audio généré par IA AIMF</comment>
+    <sub-class-of type="audio/x-wav"/>
+    <glob pattern="*.aaud"/>
+    <glob pattern="*.AAUD"/>
+    <magic priority="60">
+      <!-- WAV RIFF header -->
+      <match type="string" value="RIFF" offset="0">
+        <match type="string" value="WAVE" offset="8">
+          <match type="string" value="AAUD" offset="12"/>
+        </match>
+      </match>
+    </magic>
+    <icon name="audio-aaud"/>
+  </mime-type>
+
+  <!-- Generic AIMF fallback -->
+  <mime-type type="application/aimf">
+    <comment>AIMF Media Container</comment>
+    <comment xml:lang="de">AIMF Mediencontainer</comment>
+    <glob pattern="*.aimf"/>
+    <magic priority="50">
+      <!-- Check for any AIMF marker -->
+      <match type="string" value="AIMG" offset="0"/>
+      <match type="string" value="AAUD" offset="0"/>
+      <match type="string" value="AVID" offset="0"/>
+    </magic>
+  </mime-type>
+
+</mime-info>

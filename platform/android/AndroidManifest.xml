@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    
+    <!-- Add MIME type definitions -->
+    <application>
+        
+        <!-- Activity that can open AIMF files -->
+        <activity android:name=".AIMFViewerActivity">
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                
+                <!-- Video -->
+                <data android:scheme="file" />
+                <data android:scheme="content" />
+                <data android:mimeType="video/avid" />
+                <data android:host="*" />
+                <data android:pathPattern=".*\\.avid" />
+                
+                <!-- Image -->
+                <data android:mimeType="image/aimg" />
+                <data android:pathPattern=".*\\.aimg" />
+                
+                <!-- Audio -->
+                <data android:mimeType="audio/aaud" />
+                <data android:pathPattern=".*\\.aaud" />
+            </intent-filter>
+            
+            <!-- Handle file picker results -->
+            <intent-filter>
+                <action android:name="android.intent.action.GET_CONTENT" />
+                <category android:name="android.intent.category.OPENABLE" />
+                <data android:mimeType="video/avid" />
+                <data android:mimeType="image/aimg" />
+                <data android:mimeType="audio/aaud" />
+            </intent-filter>
+        </activity>
+        
+        <!-- Provider for file sharing -->
+        <provider
+            android:name="androidx.core.content.FileProvider"
+            android:authorities="${applicationId}.provider"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/file_paths" />
+        </provider>
+        
+    </application>
+</manifest>

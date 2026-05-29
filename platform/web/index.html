@@ -1,0 +1,12 @@
+<!-- In your web app's index.html -->
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+
+<!-- AIMF MIME type declarations -->
+<meta http-equiv="Content-Type" content="video/avid; image/aimg; audio/aaud">
+
+<!-- For file upload acceptance -->
+<input type="file" accept="video/avid,image/aimg,audio/aaud,.avid,.aimg,.aaud" />
+
+<!-- Register as file handler (PWA) -->
+<link rel="service-worker" href="/sw.js" />

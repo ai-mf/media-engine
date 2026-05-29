@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<permissions>
+    <library name="com.aimf.mime"
+             file="/system/framework/aimf.jar"/>
+</permissions>
+
+<config>
+    <mime-mapping>
+        <!-- Video -->
+        <mime-type name="video/avid">
+            <extension>.avid</extension>
+            <description>AIMF AI Video</description>
+        </mime-type>
+        
+        <!-- Image -->
+        <mime-type name="image/aimg">
+            <extension>.aimg</extension>
+            <description>AIMF AI Image</description>
+        </mime-type>
+        
+        <!-- Audio -->
+        <mime-type name="audio/aaud">
+            <extension>.aaud</extension>
+            <description>AIMF AI Audio</description>
+        </mime-type>
+    </mime-mapping>
+</config>

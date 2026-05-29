@@ -1,0 +1,38 @@
+#medi-engine/cargo/config.toml
+[build]
+# Use workspace inheritance
+workspace = true
+
+# Enable some optimizations for debug builds
+[profile.dev]
+opt-level = 0
+debug = true
+split-debuginfo = 'unpacked'
+
+[profile.release]
+opt-level = 3
+debug = false
+lto = "thin"
+codegen-units = 1
+strip = true
+
+[profile.test]
+opt-level = 1
+debug = true
+
+[target.x86_64-unknown-linux-gnu]
+linker = "cc"
+rustflags = ["-C", "target-cpu=native"]
+
+[target.x86_64-apple-darwin]
+rustflags = ["-C", "target-cpu=native"]
+
+[target.x86_64-pc-windows-msvc]
+rustflags = []
+
+[alias]
+# Custom aliases for common commands
+test-all = "test --workspace --all-targets --all-features"
+ci = "clippy --workspace -- -D warnings && test --workspace && fmt -- --check"
+build-release = "build --release --workspace"
+check-all = "check --workspace --all-targets"

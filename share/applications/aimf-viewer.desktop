@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=AIMF Viewer
+Comment=View AI Media Files
+Exec=aimf view %f
+Icon=aimf
+Terminal=true
+Categories=AudioVideo;Player;
+MimeType=video/avid;image/aimg;audio/aaud;application/aimf;

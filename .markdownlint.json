@@ -1,0 +1,29 @@
+{
+  "default": true,
+  "line-length": {
+    "line_length": 120,
+    "heading_line_length": 80,
+    "code_block_line_length": 120
+  },
+  "no-duplicate-heading": {
+    "siblings_only": true
+  },
+  "single-title": false,
+  "no-inline-html": false,
+  "first-line-heading": false,
+  "commands-show-output": false,
+  "blanks-around-headings": true,
+  "blanks-around-lists": true,
+  "heading-start-left": true,
+  "ul-style": {
+    "style": "asterisk"
+  },
+  "ol-prefix": {
+    "style": "ordered"
+  },
+  "no-hard-tabs": true,
+  "no-space-in-emphasis": true,
+  "no-space-in-code": true,
+  "no-space-in-links": true,
+  "fenced-code-language": true
+}

@@ -1,0 +1,15 @@
+[package]
+name = "cli-common"
+version = "0.1.0"
+edition = "2024"
+license = "Apache-2.0"
+authors = ["AI MEDIA FORMAT CONTRIBUTORS <aimediaformat@gmail.com>"]
+repository = "https://github.com/ai-mf/media-engine/"
+
+[dependencies]
+anyhow = {workspace=true}
+aimf_core = { path = "../../aimf_core", version = "0.1.0"}
+aimf_audio_codec = { path = "../../codecs/audio_codec", version = "0.1.0"}
+aimf_image_codec = { path = "../../codecs/image_codec", version = "0.1.0"}
+aimf_video_codec = { path = "../../codecs/video_codec", version = "0.1.0"}
+media-engine-commands = { path = "../../commands", version = "0.1.0"}

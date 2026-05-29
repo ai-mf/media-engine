@@ -3,7 +3,7 @@ name: Close PRs modifying core folder
 on:
   pull_request:
     paths:
-      - 'media_engine_core/**'
+      - 'aimf_core/**'
 
 jobs:
   close:
@@ -13,7 +13,7 @@ jobs:
       - name: Close PR with explanation
         run: |
           gh pr close ${{ github.event.pull_request.number }} \
-            --comment "❌ This PR modifies `media_engine_core/`, which is locked. Please open an issue first if you believe a change is needed." \
+            --comment "❌ This PR modifies `aimf_core/`, which is locked. Please open an issue first if you believe a change is needed." \
             --delete-branch
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

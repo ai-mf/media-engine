@@ -11,11 +11,17 @@ keywords = ["ai", "image", "format", "container"]
 
 [[bin]]
 name = "aimg"
-path = "src/bin/aimg.rs"
+path = "src/main.rs"
+
+[lib]
+name = "aimg_lib"
+path = "src/lib.rs"
 
 [dependencies]
-aimf_core = { path = "../../media_engine_core", version = "0.1.0"}
+aimf_core = { path = "../../aimf_core", version = "0.1.0"}
 aimf_image_codec = { path = "../../codecs/image_codec", version = "0.1.0"}
+media-engine-commands = { path = "../../commands", version = "0.1.0"}
+cli-common = { path = "../cli-common", version = "0.1.0"}
 
 clap = { workspace = true }
 ed25519-dalek = { workspace = true }
@@ -23,3 +29,5 @@ anyhow = { workspace = true }
 serde_json = { workspace = true }
 hound = { workspace = true }
 hex = { workspace = true }
+rand = { workspace = true }
+tokio = { workspace = true }

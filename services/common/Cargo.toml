@@ -1,0 +1,5 @@
+# media-engine/services/common/Cargo.toml
+[package]
+name = "media-engine-common"
+version = "0.1.0"
+edition = "2024"

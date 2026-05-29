@@ -1,0 +1,102 @@
+// media-engine/commands/src/json_input.rs
+use crate::traits::*;
+use crate::common::*;
+use crate::utils::ProgressTracker;
+use anyhow::{Result};
+use aimf_core::{AiContainer, AiMetadata, PayloadType};
+use std::io::Read;
+use async_trait::async_trait;
+
+pub struct JsonCreateCommand;
+
+#[async_trait]
+impl CommandExecutor for JsonCreateCommand {
+    type Args = JsonCreateArgs;
+
+    async fn execute(args: Self::Args, ctx: &CommandContext) -> Result<()> {
+        let progress = ProgressTracker::new(ctx.show_progress, "Reading JSON input...");
+
+        // Read JSON from stdin
+        let mut buffer = Vec::new();
+        std::io::stdin().read_to_end(&mut buffer)?;
+        
+        // Validate JSON
+        if let Err(e) = serde_json::from_slice::<serde_json::Value>(&buffer) {
+            anyhow::bail!("Invalid JSON input: {}", e);
+        }
+        
+        progress.set_message("Parsing JSON media data...");
+        let parsed = ctx.processor.parse_input(&buffer, InputFormat::Json, &ctx.validation_rules).await?;
+
+        // Encode to standard format
+        progress.set_message("Encoding media...");
+        let encoded = ctx.processor.encode_media(&parsed).await?;
+
+        // Create metadata
+        progress.set_message("Creating metadata...");
+        let metadata = create_json_metadata(&args, &parsed);
+
+        // Create container
+        progress.set_message("Creating AI container...");
+        let mut container = AiContainer::new(
+            ctx.media_type,
+            ctx.format_extension.clone(),
+            PayloadType::Encoded,
+            metadata,
+            encoded.clone(),
+        )?;
+
+        // Sign if needed
+        if let Some(key_path) = &args.common.key {
+            progress.set_message("Signing container...");
+            let key_bytes = std::fs::read(key_path)?;
+            let signing_key = ed25519_dalek::SigningKey::from_bytes(&key_bytes[..32].try_into()?);
+            container.sign(&signing_key)?;
+        }
+
+        // Embed and save
+        progress.set_message("Embedding metadata...");
+        let final_data = (ctx.embed_function)(&encoded, &container)?;
+        
+        std::fs::write(&args.common.output, &final_data)?;
+        progress.finish_with_message(&format!("✅ Created: {}", args.common.output.display()));
+
+        Ok(())
+    }
+
+    fn name() -> &'static str { "json" }
+    fn description() -> &'static str { "Create from JSON input format" }
+}
+
+fn create_json_metadata(args: &JsonCreateArgs, media: &ParsedMedia) -> AiMetadata {
+    let mut metadata = AiMetadata::new(
+        args.common.model.clone(),
+        args.common.version.clone(),
+        None,
+    );
+
+    // Set media-specific fields
+    match media {
+        ParsedMedia::Audio(audio) => {
+            metadata.modality = "audio".into();
+            metadata.format = "f32".into();
+            metadata.sample_rate = Some(audio.sample_rate);
+            metadata.channels = Some(audio.channels);
+        }
+        ParsedMedia::Image(image) => {
+            metadata.modality = "image".into();
+            metadata.format = "rgb8".into();
+            metadata.width = Some(image.width);
+            metadata.height = Some(image.height);
+        }
+        ParsedMedia::Video(video) => {
+            metadata.modality = "video".into();
+            metadata.format = "rgb8".into();
+            metadata.width = Some(video.width);
+            metadata.height = Some(video.height);
+            metadata.fps = Some(video.fps);
+        }
+    }
+
+    metadata
+}

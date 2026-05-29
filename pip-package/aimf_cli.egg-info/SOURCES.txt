@@ -1,8 +1,0 @@
-README.md
-setup.py
-aimf/__main__.py
-aimf_cli.egg-info/PKG-INFO
-aimf_cli.egg-info/SOURCES.txt
-aimf_cli.egg-info/dependency_links.txt
-aimf_cli.egg-info/entry_points.txt
-aimf_cli.egg-info/top_level.txt

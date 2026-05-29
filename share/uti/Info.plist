@@ -1,0 +1,21 @@
+<key>UTImportedTypeDeclarations</key>
+<array>
+    <!-- Reference the UTI file -->
+</array>
+<key>CFBundleDocumentTypes</key>
+<array>
+    <dict>
+        <key>CFBundleTypeName</key>
+        <string>AIMF File</string>
+        <key>LSItemContentTypes</key>
+        <array>
+            <string>com.aimf.video</string>
+            <string>com.aimf.image</string>
+            <string>com.aimf.audio</string>
+        </array>
+        <key>CFBundleTypeRole</key>
+        <string>Viewer</string>
+        <key>LSHandlerRank</key>
+        <string>Default</string>
+    </dict>
+</array>

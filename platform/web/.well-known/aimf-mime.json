@@ -1,0 +1,32 @@
+{
+  "media-types": [
+    {
+      "name": "video/avid",
+      "description": "AIMF AI-Generated Video",
+      "extensions": ["avid"],
+      "encoding": "binary",
+      "compression": "optional",
+      "references": {
+        "specification": "https://github.com/ai-mf/media-engine/spec/avid.md"
+      }
+    },
+    {
+      "name": "image/aimg",
+      "description": "AIMF AI-Generated Image",
+      "extensions": ["aimg"],
+      "encoding": "binary",
+      "references": {
+        "specification": "https://github.com/ai-mf/media-engine/spec/aimg.md"
+      }
+    },
+    {
+      "name": "audio/aaud",
+      "description": "AIMF AI-Generated Audio",
+      "extensions": ["aaud"],
+      "encoding": "binary",
+      "references": {
+        "specification": "https://github.com/ai-mf/media-engine/spec/aaud.md"
+      }
+    }
+  ]
+}

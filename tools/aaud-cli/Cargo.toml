@@ -12,18 +12,25 @@ keywords = ["ai", "audio", "format", "container"]
 
 [[bin]]
 name = "aaud"
-path = "src/bin/aaud.rs"
+path = "src/main.rs"
 
+[lib]
+name = "aaud_lib"
+path = "src/lib.rs"
 
 [dependencies]
-aimf_core = { path = "../../media_engine_core", version = "0.1.0"}
+aimf_core = { path = "../../aimf_core", version = "0.1.0"}
 aimf_audio_codec = { path = "../../codecs/audio_codec", version = "0.1.0"}
+media-engine-commands = { path = "../../commands", version = "0.1.0"}
+cli-common = { path = "../cli-common", version = "0.1.0"}
 
 
 clap = { workspace = true }
 ed25519-dalek = { workspace = true }
+tokio = { workspace = true }
 anyhow = { workspace = true }
 thiserror = { workspace = true }
 serde_json = { workspace = true }
 hound = { workspace = true }
+rand = { workspace = true }
 hex = { workspace = true }

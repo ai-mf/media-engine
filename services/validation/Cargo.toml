@@ -1,0 +1,9 @@
+# media-engine/services/validation/Cargo.toml
+[package]
+name = "media-engine-validation"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+anyhow = {workspace=true}
+aimf_core = { path = "../../aimf_core", version = "0.1.0"}

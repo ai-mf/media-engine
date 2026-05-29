@@ -1,14 +1,25 @@
 [workspace]
 members = [
-    "media_engine_core",
+
+    "aimf_core",
     "codecs/image_codec",
     "codecs/audio_codec",
     "codecs/video_codec",
-    "tools/aaud-cli",        # paid audio
-    "tools/aimf-cli",        # free
-    "tools/aimg-cli",        # paid image  
-    "tools/avid-cli",        # paid video
-    "tools/aimf-bundle",        # paid video
+    "tools/aaud-cli",        
+    "tools/aimf-cli",       
+    "tools/aimg-cli",        
+    "tools/avid-cli",        
+    "tools/cli-common",        
+  
+    "services/common",               # NEW: Business logic layer
+    "services/ingestion",          # Input parsing & detection
+    "services/validation",         # Format & content validation
+    "services/signing",            # Cryptographic operations
+    "services/streaming",          # Large file handling
+    "services/batch",             # Batch processing logic
+    "commands",
+    "examples",
+
 ]
 resolver = "2"
 [workspace.dependencies]
@@ -26,6 +37,18 @@ thiserror = "2"
 pyo3 = "0.21"  # Add this for Python bindings
 hex = "0.4"
 tempfile = "3.8"
+indicatif = "0.17"
+rayon = "1.8"
+glob = "0.3"
+uuid = { version = "1.6", features = ["v4"], }
+chrono = { version = "0.4", features = ["serde","clock"]}
+
+# Async
+tokio = { version = "1.52.3", features = ["full"]}
+async-trait = "0.1"
+futures = "0.3"
+
+sha2 = "0.10"
 
 #clap = { version = "4.0", features = ["derive"] }
 #image = "0.25"

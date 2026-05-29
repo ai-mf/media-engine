@@ -1,0 +1,26 @@
+{
+  "name": "AIMF Viewer",
+  "short_name": "AIMF",
+  "start_url": "/",
+  "display": "standalone",
+  "theme_color": "#000000",
+  "background_color": "#ffffff",
+  "file_handlers": [
+    {
+      "action": "/open",
+      "accept": {
+        "video/avid": [".avid"],
+        "image/aimg": [".aimg"],
+        "audio/aaud": [".aaud"]
+      }
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Open AIMF File",
+      "short_name": "Open",
+      "description": "Open an AIMF file",
+      "url": "/open"
+    }
+  ]
+}

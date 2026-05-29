@@ -1,0 +1,54 @@
+# commands/Cargo.toml
+[package]
+name = "media-engine-commands"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+# Core
+aimf_core = { path = "../aimf_core", version = "0.1.0"}
+aimf_audio_codec = { path = "../codecs/audio_codec", version = "0.1.0"}
+aimf_image_codec = { path = "../codecs/image_codec", version = "0.1.0"}
+aimf_video_codec = { path = "../codecs/video_codec", version = "0.1.0"}
+media-engine-signing = { path = "../services/signing", version = "0.1.0"}
+
+# CLI
+rand = { workspace=true }
+clap = { workspace=true }
+indicatif = { workspace=true }
+
+# Async
+tokio = { workspace=true, optional=true}
+async-trait = { workspace=true, optional=true}
+futures = { workspace=true }
+
+# Serialization
+serde = { workspace=true }
+serde_json = { workspace=true }
+
+# Crypto
+ed25519-dalek = { workspace=true }
+sha2 = { workspace=true }
+hex = { workspace=true }
+
+# Error handling
+anyhow = { workspace=true }
+thiserror = { workspace=true }
+
+# File handling
+tempfile = { workspace=true }
+glob = { workspace=true }
+rayon = "1.8"
+
+# Media processing
+hound = { workspace=true }
+image = { workspace=true }
+
+# C2PA
+uuid = { workspace=true, optional=true}
+chrono = { workspace=true, optional=true}
+
+[features]
+default = ["async-support", "c2pa-support"]  # Add c2pa-support here
+async-support = ["tokio", "dep:async-trait"]
+c2pa-support = ["uuid", "chrono"]

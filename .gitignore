@@ -12,6 +12,8 @@ Cargo.lock
 *.mp4
 
 # Python
+python/
+aimf.egg-info/
 __pycache__/
 *.py[cod]
 *$py.class
@@ -25,6 +27,8 @@ package-lock.json
 
 # Docker
 *.tar.gz
+Dockerfile
+docker-compose.yml
 
 # Keys (CRITICAL - don't commit these!)
 *.key

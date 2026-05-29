@@ -1,0 +1,59 @@
+# media-engine/examples/Cargo.toml
+[package]
+name = "aimf-examples"
+version = "0.1.0"
+edition = "2024"
+
+
+
+[[example]]
+name = "ai_generate_image"
+path = "src/ai_generate_image.rs"
+
+[[example]]
+name = "ai_generate_audio"
+path = "src/ai_generate_audio.rs"
+
+[[example]]
+name = "ai_generate_video"
+path = "src/ai_generate_video.rs"
+
+
+[[example]]
+name = "ai_generate_video_simple"
+path = "src/ai_generate_video_simple.rs"
+
+[[example]]
+name = "generate_video"
+path = "src/generate_video.rs"
+
+[[example]]
+name = "generate_audio"
+path = "src/generate_audio.rs"
+
+[[example]]
+name = "generate_image"
+path = "src/generate_image.rs"
+
+[[example]]
+name = "generate_long_video"
+path = "src/generate_long_video.rs"
+
+[[example]]
+name = "generate_universal"
+path = "src/generate_universal.rs"
+
+[[example]]
+name = "batch_similar"
+path = "src/batch_similar.rs"
+
+[[example]]
+name = "batch_mixed"
+path = "src/batch_mixed.rs"
+
+[[example]]
+name = "batch_csv"
+path = "src/batch_csv.rs"
+
+[dependencies]
+serde_json = { workspace = true }

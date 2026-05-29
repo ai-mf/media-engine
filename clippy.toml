@@ -1,0 +1,52 @@
+# media-engine/clippy.toml
+# Clippy configuration for AIMF
+
+# Deny all warnings by default
+warn_on_all_warnings = true
+
+# Allow certain lints that are too strict
+allow = [
+    "too_many_arguments",
+    "module_name_repetitions",
+    "similar_names",
+]
+
+# Deny these lints (treat as errors)
+deny = [
+    "unwrap_used",
+    "expect_used",
+    "panic",
+    "todo",
+    "unreachable",
+    "await_holding_lock",
+    "dbg_macro",
+    "print_stdout",
+    "print_stderr",
+]
+
+# Maximum complexity allowed
+cognitive_complexity_threshold = 25
+
+# Maximum lines for a single function
+too_many_lines_threshold = 150
+
+# Maximum number of arguments
+too_many_arguments_threshold = 8
+
+# Disallow certain functions
+disallowed_methods = [
+    "std::mem::transmute",
+    "std::ptr::read_volatile",
+]
+
+# Disallow certain types
+disallowed_types = [
+    "std::cell::RefCell",
+    "std::sync::RwLock",
+]
+
+# Allow unwrap in tests
+allow-unwrap-in-tests = true
+
+# Allow expect in tests
+allow-expect-in-tests = true

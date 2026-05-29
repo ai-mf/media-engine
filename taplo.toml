@@ -1,0 +1,21 @@
+# media-engine/taplo.toml
+[formatting]
+# TOML formatting rules
+reorder_keys = true
+reorder_arrays = false
+allowed_blank_lines = 1
+crlf = false
+indent_string = "    "
+indent_entries = true
+array_auto_expand = true
+trailing_newline = true
+
+[formatting.array]
+auto_expand = true
+
+[formatting.table]
+auto_expand = true
+
+[formatting.key]
+# Keep dependencies in order
+reorder_keys = false

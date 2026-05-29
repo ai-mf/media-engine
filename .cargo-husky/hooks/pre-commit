@@ -1,0 +1,36 @@
+#!/bin/bash
+# Cargo-husky pre-commit hook
+# Install: cargo install cargo-husky && cargo husky init
+
+set -e
+
+echo "🔍 Running pre-commit checks..."
+
+# Format check
+echo "  Checking formatting..."
+cargo fmt --all -- --check
+
+# Clippy
+echo "  Running clippy..."
+cargo clippy --workspace -- -D warnings
+
+# Tests
+echo "  Running tests..."
+cargo test --workspace
+
+# Check for private keys
+echo "  Checking for private keys..."
+if git diff --cached --name-only | grep -E '\.(key|pem|priv)$'; then
+    echo "❌ ERROR: Private key files detected in commit!"
+    exit 1
+fi
+
+# Check for large files (>1MB)
+echo "  Checking for large files..."
+git diff --cached --name-only | while read file; do
+    if [ -f "$file" ] && [ $(stat -f%z "$file" 2>/dev/null || stat -c%s "$file" 2>/dev/null) -gt 1048576 ]; then
+        echo "⚠️  Warning: $file is large (>1MB). Consider if it should be committed."
+    fi
+done
+
+echo "✅ All pre-commit checks passed!"

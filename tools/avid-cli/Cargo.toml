@@ -11,11 +11,17 @@ keywords = ["ai", "video", "format", "container"]
 
 [[bin]]
 name = "avid"
-path = "src/bin/avid.rs"
+path = "src/main.rs"
+
+[lib]
+name = "avid_lib"
+path = "src/lib.rs"
 
 [dependencies]
-aimf_core = { path = "../../media_engine_core", version = "0.1.0"}
+aimf_core = { path = "../../aimf_core", version = "0.1.0"}
 aimf_video_codec = { path = "../../codecs/video_codec", version = "0.1.0"}
+media-engine-commands = { path = "../../commands", version = "0.1.0"}
+cli-common = { path = "../cli-common", version = "0.1.0"}
 
 
 
@@ -23,8 +29,10 @@ clap = { workspace = true }
 ed25519-dalek = { workspace = true }
 anyhow = { workspace = true }
 serde_json = { workspace = true }
+rand = { workspace = true }
 image = { workspace = true }
 ffmpeg-sidecar = { workspace = true }
 hound = { workspace = true }
 tempfile = { workspace = true }
 hex = { workspace = true }
+tokio = { workspace = true }

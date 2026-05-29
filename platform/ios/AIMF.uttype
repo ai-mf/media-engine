@@ -1,0 +1,196 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>UTImportedTypeDeclarations</key>
+    <array>
+        <!-- AVID Video -->
+        <dict>
+            <key>UTTypeIdentifier</key>
+            <string>com.aimf.video</string>
+            
+            <key>UTTypeTagSpecification</key>
+            <dict>
+                <key>public.filename-extension</key>
+                <array>
+                    <string>avid</string>
+                    <string>AVID</string>
+                </array>
+                <key>public.mime-type</key>
+                <array>
+                    <string>video/avid</string>
+                </array>
+            </dict>
+            
+            <key>UTTypeDescription</key>
+            <string>AIMF AI-Generated Video</string>
+            
+            <key>UTTypeIconFile</key>
+            <string>avid-icon</string>
+            
+            <key>UTTypeReferenceURL</key>
+            <string>https://github.com/ai-mf/media-engine</string>
+            
+            <key>UTTypeConformsTo</key>
+            <array>
+                <string>public.mpeg-4</string>
+                <string>public.video</string>
+                <string>public.data</string>
+            </array>
+            
+            <key>UTTypeVersion</key>
+            <integer>1</integer>
+        </dict>
+        
+        <!-- AIMG Image -->
+        <dict>
+            <key>UTTypeIdentifier</key>
+            <string>com.aimf.image</string>
+            
+            <key>UTTypeTagSpecification</key>
+            <dict>
+                <key>public.filename-extension</key>
+                <array>
+                    <string>aimg</string>
+                    <string>AIMG</string>
+                </array>
+                <key>public.mime-type</key>
+                <array>
+                    <string>image/aimg</string>
+                </array>
+            </dict>
+            
+            <key>UTTypeDescription</key>
+            <string>AIMF AI-Generated Image</string>
+            
+            <key>UTTypeIconFile</key>
+            <string>aimg-icon</string>
+            
+            <key>UTTypeReferenceURL</key>
+            <string>https://github.com/ai-mf/media-engine</string>
+            
+            <key>UTTypeConformsTo</key>
+            <array>
+                <string>public.png</string>
+                <string>public.image</string>
+                <string>public.data</string>
+            </array>
+            
+            <key>UTTypeVersion</key>
+            <integer>1</integer>
+        </dict>
+        
+        <!-- AAUD Audio -->
+        <dict>
+            <key>UTTypeIdentifier</key>
+            <string>com.aimf.audio</string>
+            
+            <key>UTTypeTagSpecification</key>
+            <dict>
+                <key>public.filename-extension</key>
+                <array>
+                    <string>aaud</string>
+                    <string>AAUD</string>
+                </array>
+                <key>public.mime-type</key>
+                <array>
+                    <string>audio/aaud</string>
+                </array>
+            </dict>
+            
+            <key>UTTypeDescription</key>
+            <string>AIMF AI-Generated Audio</string>
+            
+            <key>UTTypeIconFile</key>
+            <string>aaud-icon</string>
+            
+            <key>UTTypeReferenceURL</key>
+            <string>https://github.com/ai-mf/media-engine</string>
+            
+            <key>UTTypeConformsTo</key>
+            <array>
+                <string>public.wav</string>
+                <string>public.audio</string>
+                <string>public.data</string>
+            </array>
+            
+            <key>UTTypeVersion</key>
+            <integer>1</integer>
+        </dict>
+        
+        <!-- Generic AIMF (fallback for unknown types) -->
+        <dict>
+            <key>UTTypeIdentifier</key>
+            <string>com.aimf.generic</string>
+            
+            <key>UTTypeTagSpecification</key>
+            <dict>
+                <key>public.filename-extension</key>
+                <array>
+                    <string>aimf</string>
+                    <string>AIMF</string>
+                </array>
+                <key>public.mime-type</key>
+                <array>
+                    <string>application/aimf</string>
+                </array>
+            </dict>
+            
+            <key>UTTypeDescription</key>
+            <string>AIMF Generic Container</string>
+            
+            <key>UTTypeIconFile</key>
+            <string>aimf-icon</string>
+            
+            <key>UTTypeReferenceURL</key>
+            <string>https://github.com/ai-mf/media-engine</string>
+            
+            <key>UTTypeConformsTo</key>
+            <array>
+                <string>public.data</string>
+            </array>
+            
+            <key>UTTypeVersion</key>
+            <integer>1</integer>
+        </dict>
+    </array>
+    
+    <!-- Exported Type Declarations (for apps that create AIMF files) -->
+    <key>UTExportedTypeDeclarations</key>
+    <array>
+        <dict>
+            <key>UTTypeIdentifier</key>
+            <string>com.aimf.video</string>
+            <key>UTTypeTagSpecification</key>
+            <dict>
+                <key>public.filename-extension</key>
+                <array>
+                    <string>avid</string>
+                </array>
+            </dict>
+        </dict>
+        <dict>
+            <key>UTTypeIdentifier</key>
+            <string>com.aimf.image</string>
+            <key>UTTypeTagSpecification</key>
+            <dict>
+                <key>public.filename-extension</key>
+                <array>
+                    <string>aimg</string>
+                </array>
+            </dict>
+        </dict>
+        <dict>
+            <key>UTTypeIdentifier</key>
+            <string>com.aimf.audio</string>
+            <key>UTTypeTagSpecification</key>
+            <dict>
+                <key>public.filename-extension</key>
+                <array>
+                    <string>aaud</string>
+                </array>
+            </dict>
+        </dict>
+    </array>
+</dict>
+</plist>

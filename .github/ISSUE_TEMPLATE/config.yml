@@ -1,0 +1,12 @@
+```yaml
+blank_issues_enabled: false
+contact_links:
+  - name: 💬 Discussions
+    url: https://github.com/ai-mf/media-engine/discussions
+    about: Ask questions, share ideas, or get help
+  - name: 📖 Documentation
+    url: https://github.com/ai-mf/media-engine/blob/main/README.md
+    about: Check the README and docs first
+  - name: 🔒 Security Issue
+    url: https://github.com/ai-mf/media-engine/security/policy
+    about: Report security vulnerabilities privately

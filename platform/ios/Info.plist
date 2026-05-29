@@ -1,0 +1,289 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <!-- Basic App Configuration -->
+    <key>CFBundleDevelopmentRegion</key>
+    <string>$(DEVELOPMENT_LANGUAGE)</string>
+    
+    <key>CFBundleExecutable</key>
+    <string>$(EXECUTABLE_NAME)</string>
+    
+    <key>CFBundleIdentifier</key>
+    <string>$(PRODUCT_BUNDLE_IDENTIFIER)</string>
+    
+    <key>CFBundleInfoDictionaryVersion</key>
+    <string>6.0</string>
+    
+    <key>CFBundleName</key>
+    <string>$(PRODUCT_NAME)</string>
+    
+    <key>CFBundlePackageType</key>
+    <string>$(PRODUCT_BUNDLE_PACKAGE_TYPE)</string>
+    
+    <key>CFBundleShortVersionString</key>
+    <string>1.0</string>
+    
+    <key>CFBundleVersion</key>
+    <string>1</string>
+    
+    <key>LSRequiresIPhoneOS</key>
+    <true/>
+    
+    <!-- AIMF: Imported UTI Declarations -->
+    <key>UTImportedTypeDeclarations</key>
+    <array>
+        <!-- AVID Video -->
+        <dict>
+            <key>UTTypeIdentifier</key>
+            <string>com.aimf.video</string>
+            <key>UTTypeTagSpecification</key>
+            <dict>
+                <key>public.filename-extension</key>
+                <array>
+                    <string>avid</string>
+                    <string>AVID</string>
+                </array>
+                <key>public.mime-type</key>
+                <array>
+                    <string>video/avid</string>
+                </array>
+            </dict>
+            <key>UTTypeDescription</key>
+            <string>AIMF AI Video</string>
+            <key>UTTypeConformsTo</key>
+            <array>
+                <string>public.mpeg-4</string>
+                <string>public.video</string>
+                <string>public.data</string>
+            </array>
+            <key>UTTypeReferenceURL</key>
+            <string>https://github.com/ai-mf/media-engine</string>
+        </dict>
+        
+        <!-- AIMG Image -->
+        <dict>
+            <key>UTTypeIdentifier</key>
+            <string>com.aimf.image</string>
+            <key>UTTypeTagSpecification</key>
+            <dict>
+                <key>public.filename-extension</key>
+                <array>
+                    <string>aimg</string>
+                    <string>AIMG</string>
+                </array>
+                <key>public.mime-type</key>
+                <array>
+                    <string>image/aimg</string>
+                </array>
+            </dict>
+            <key>UTTypeDescription</key>
+            <string>AIMF AI Image</string>
+            <key>UTTypeConformsTo</key>
+            <array>
+                <string>public.png</string>
+                <string>public.image</string>
+                <string>public.data</string>
+            </array>
+            <key>UTTypeReferenceURL</key>
+            <string>https://github.com/ai-mf/media-engine</string>
+        </dict>
+        
+        <!-- AAUD Audio -->
+        <dict>
+            <key>UTTypeIdentifier</key>
+            <string>com.aimf.audio</string>
+            <key>UTTypeTagSpecification</key>
+            <dict>
+                <key>public.filename-extension</key>
+                <array>
+                    <string>aaud</string>
+                    <string>AAUD</string>
+                </array>
+                <key>public.mime-type</key>
+                <array>
+                    <string>audio/aaud</string>
+                </array>
+            </dict>
+            <key>UTTypeDescription</key>
+            <string>AIMF AI Audio</string>
+            <key>UTTypeConformsTo</key>
+            <array>
+                <string>public.wav</string>
+                <string>public.audio</string>
+                <string>public.data</string>
+            </array>
+            <key>UTTypeReferenceURL</key>
+            <string>https://github.com/ai-mf/media-engine</string>
+        </dict>
+        
+        <!-- Generic AIMF -->
+        <dict>
+            <key>UTTypeIdentifier</key>
+            <string>com.aimf.generic</string>
+            <key>UTTypeTagSpecification</key>
+            <dict>
+                <key>public.filename-extension</key>
+                <array>
+                    <string>aimf</string>
+                    <string>AIMF</string>
+                </array>
+                <key>public.mime-type</key>
+                <array>
+                    <string>application/aimf</string>
+                </array>
+            </dict>
+            <key>UTTypeDescription</key>
+            <string>AIMF Generic Container</string>
+            <key>UTTypeConformsTo</key>
+            <array>
+                <string>public.data</string>
+            </array>
+        </dict>
+    </array>
+    
+    <!-- Document Types: Which file types your app can open -->
+    <key>CFBundleDocumentTypes</key>
+    <array>
+        <!-- Open AVID Videos -->
+        <dict>
+            <key>CFBundleTypeName</key>
+            <string>AIMF Video</string>
+            <key>LSItemContentTypes</key>
+            <array>
+                <string>com.aimf.video</string>
+            </array>
+            <key>CFBundleTypeRole</key>
+            <string>Viewer</string>
+            <key>LSHandlerRank</key>
+            <string>Default</string>
+            <key>LSIsAppleDefaultForType</key>
+            <false/>
+        </dict>
+        
+        <!-- Open AIMG Images -->
+        <dict>
+            <key>CFBundleTypeName</key>
+            <string>AIMF Image</string>
+            <key>LSItemContentTypes</key>
+            <array>
+                <string>com.aimf.image</string>
+            </array>
+            <key>CFBundleTypeRole</key>
+            <string>Viewer</string>
+            <key>LSHandlerRank</key>
+            <string>Default</string>
+        </dict>
+        
+        <!-- Open AAUD Audio -->
+        <dict>
+            <key>CFBundleTypeName</key>
+            <string>AIMF Audio</string>
+            <key>LSItemContentTypes</key>
+            <array>
+                <string>com.aimf.audio</string>
+            </array>
+            <key>CFBundleTypeRole</key>
+            <string>Viewer</string>
+            <key>LSHandlerRank</key>
+            <string>Default</string>
+        </dict>
+        
+        <!-- Open Generic AIMF -->
+        <dict>
+            <key>CFBundleTypeName</key>
+            <string>AIMF Generic</string>
+            <key>LSItemContentTypes</key>
+            <array>
+                <string>com.aimf.generic</string>
+            </array>
+            <key>CFBundleTypeRole</key>
+            <string>Viewer</string>
+            <key>LSHandlerRank</key>
+            <string>Alternate</string>
+        </dict>
+    </array>
+    
+    <!-- URL Schemes (optional: for aimf:// protocol) -->
+    <key>CFBundleURLTypes</key>
+    <array>
+        <dict>
+            <key>CFBundleURLName</key>
+            <string>AIMF Protocol</string>
+            <key>CFBundleURLSchemes</key>
+            <array>
+                <string>aimf</string>
+            </array>
+        </dict>
+    </array>
+    
+    <!-- Imported/Exported Type UTIs -->
+    <key>UTExportedTypeDeclarations</key>
+    <array>
+        <dict>
+            <key>UTTypeIdentifier</key>
+            <string>com.aimf.video</string>
+            <key>UTTypeTagSpecification</key>
+            <dict>
+                <key>public.filename-extension</key>
+                <array>
+                    <string>avid</string>
+                </array>
+            </dict>
+        </dict>
+        <dict>
+            <key>UTTypeIdentifier</key>
+            <string>com.aimf.image</string>
+            <key>UTTypeTagSpecification</key>
+            <dict>
+                <key>public.filename-extension</key>
+                <array>
+                    <string>aimg</string>
+                </array>
+            </dict>
+        </dict>
+        <dict>
+            <key>UTTypeIdentifier</key>
+            <string>com.aimf.audio</string>
+            <key>UTTypeTagSpecification</key>
+            <dict>
+                <key>public.filename-extension</key>
+                <array>
+                    <string>aaud</string>
+                </array>
+            </dict>
+        </dict>
+    </array>
+    
+    <!-- App Capabilities -->
+    <key>UISupportedInterfaceOrientations</key>
+    <array>
+        <string>UIInterfaceOrientationPortrait</string>
+        <string>UIInterfaceOrientationLandscapeLeft</string>
+        <string>UIInterfaceOrientationLandscapeRight</string>
+    </array>
+    
+    <key>UIApplicationSceneManifest</key>
+    <dict>
+        <key>UIApplicationSupportsMultipleScenes</key>
+        <false/>
+    </dict>
+    
+    <!-- File Sharing -->
+    <key>UIFileSharingEnabled</key>
+    <true/>
+    
+    <key>LSSupportsOpeningDocumentsInPlace</key>
+    <true/>
+    
+    <!-- Camera/Photo Library Access (if your app creates AIMF files) -->
+    <key>NSCameraUsageDescription</key>
+    <string>This app needs camera access to create AIMF images</string>
+    
+    <key>NSPhotoLibraryUsageDescription</key>
+    <string>This app needs photo library access to save AIMF files</string>
+    
+    <key>NSPhotoLibraryAddUsageDescription</key>
+    <string>This app needs to save AIMF files to your photo library</string>
+</dict>
+</plist>
