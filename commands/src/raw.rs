@@ -41,7 +41,7 @@ impl CommandExecutor for RawCreateCommand {
             ctx.format_extension.clone(),
             PayloadType::Encoded,
             metadata,
-            encoded.clone(),
+            &encoded,//encoded.clone(),
         )?;
 
         if let Some(key_path) = &args.common.key {

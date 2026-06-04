@@ -58,8 +58,9 @@ impl AaudConfig {
     /// Verify audio file integrity and signature
     pub fn verify(&self, file: &PathBuf) -> Result<VerificationResult> {
         let data = std::fs::read(file)?;
+        let media_bytes = &data; // 👈 THIS LINE
         let container = extract_aaud_from_wav(&data)?;
-        Ok(container.full_verify())
+        Ok(container.full_verify(media_bytes))
     }
 
     /// Sign an audio file with a private key

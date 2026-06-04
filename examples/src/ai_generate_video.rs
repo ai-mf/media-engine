@@ -77,7 +77,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     
     println!("Sending to AIMF...");
     let mut child = std::process::Command::new("cargo")
-        .args(&["run", "--bin", "aimf", "--", "json",
+        .args(&["run", "--bin", "avid", "--", "json",
                 "--output", "test_video_long.avid",
                 "--model", "test-ai",
                 "--version", "1.0",

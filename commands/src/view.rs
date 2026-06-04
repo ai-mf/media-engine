@@ -38,7 +38,7 @@ impl CommandExecutor for ViewCommand {
 
         // Write media to temp file
         progress.set_message("Writing media file...");
-        std::fs::write(&temp_path, &container.payload)
+        std::fs::write(&temp_path, &data)
             .context("Failed to write temporary file")?;
 
         if args.no_open {

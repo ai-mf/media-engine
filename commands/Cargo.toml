@@ -13,6 +13,7 @@ aimf_video_codec = { path = "../codecs/video_codec", version = "0.1.0"}
 media-engine-signing = { path = "../services/signing", version = "0.1.0"}
 
 # CLI
+png = { workspace=true }
 rand = { workspace=true }
 clap = { workspace=true }
 indicatif = { workspace=true }

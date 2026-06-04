@@ -13,7 +13,7 @@ keywords = ["ai", "media", "format", "container", "metadata"]
 categories = ["multimedia", "encoding"]
 
 [dependencies]
-serde_json = { workspace = true }
+serde_cbor = { workspace = true }
 serde = { workspace = true }
 anyhow = { workspace = true }
 thiserror= { workspace = true }
@@ -21,9 +21,3 @@ sha2= { workspace = true }
 # Add this for signatures
 ed25519-dalek = { workspace = true }
 rand = { workspace = true }
-
-indicatif = { workspace = true }
-rayon = { workspace = true }
-glob = { workspace = true }
-uuid = { workspace = true }
-chrono = { workspace = true }

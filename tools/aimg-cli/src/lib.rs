@@ -52,8 +52,9 @@ impl AimgConfig {
     /// Verify image file integrity and signature
     pub fn verify(&self, file: &PathBuf) -> Result<VerificationResult> {
         let data = std::fs::read(file)?;
+        let media_bytes = &data; // 👈 THIS LINE
         let container = extract_aimg_from_png(&data)?;
-        Ok(container.full_verify())
+        Ok(container.full_verify(media_bytes))
     }
 
     /// Sign an image file with a private key

@@ -67,7 +67,7 @@ impl CommandExecutor for JsonCreateCommand {
             format_extension,
             PayloadType::Encoded,
             metadata,
-            encoded.clone(),
+            &encoded
         )?;
 
         // Sign if needed

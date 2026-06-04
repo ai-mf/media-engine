@@ -35,8 +35,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     
     // Use aimg binary for images
     let mut child = std::process::Command::new("cargo")
-        .args(&["run", "--bin", "aimg", "--", "json", 
-                "--output", "test_image.aimg",
+        .args(&["run", "--bin", "aimf", "--", "json", 
+                "--output", "test_image1.aimg",
                 "--model", "test-ai",
                 "--version", "1.0",
                 "--key", "private.key",

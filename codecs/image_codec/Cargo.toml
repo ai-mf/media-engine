@@ -9,11 +9,7 @@ repository = "https://github.com/ai-mf/media-engine/"
 
 [dependencies]
 aimf_core = { path = "../../aimf_core", version = "0.1.0"}
-serde = { workspace = true }
-serde_json = { workspace = true }
 anyhow = { workspace = true }
 hound = { workspace = true }
-hex = { workspace = true }
 thiserror = { workspace = true }
-tempfile = { workspace = true }
-png = "0.18.1"
+png = { workspace = true }

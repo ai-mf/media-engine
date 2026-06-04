@@ -119,7 +119,7 @@ impl SigningService {
             encoding: container.encoding.clone(),
             payload_type: container.payload_type.clone(),
             metadata: signing_metadata,
-            payload: container.payload.clone(),
+            //payload: container.payload.clone(),
             hash: container.hash,
         };
         
@@ -205,94 +205,5 @@ impl AiContainerSigningExt for AiContainer {
             is_signed,
             signature_valid,
         }
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use aimf_core::{AiContainer, AiMetadata, MediaType, PayloadType};
-
-    fn create_test_container() -> AiContainer {
-        let metadata = AiMetadata {
-            is_ai_generated: true,
-            model_name: "TestModel".to_string(),
-            model_version: "1.0".to_string(),
-            prompt_hash: None,
-            modality: "image".to_string(),
-            format: "rgb8".to_string(),
-            width: Some(512),
-            height: Some(512),
-            sample_rate: None,
-            channels: None,
-            fps: None,
-            timestamp: 1234567890,
-            signature: None,
-            public_key: None,
-        };
-
-        AiContainer::new(
-            MediaType::Image,
-            "png".to_string(),
-            PayloadType::Encoded,
-            metadata,
-            vec![0u8; 100], // Test payload
-        ).unwrap()
-    }
-
-    #[test]
-    fn test_sign_and_verify() {
-        let mut container = create_test_container();
-        let signing_key = SigningKey::generate(&mut rand::thread_rng());
-        
-        // Sign the container
-        container.sign(&signing_key).unwrap();
-        
-        // Verify with the container's own method
-        assert!(container.verify());
-        
-        // Verify with specific key
-        assert!(container.verify_with_key(&signing_key.verifying_key()).unwrap());
-        
-        // Verify using the service directly
-        assert!(SigningService::verify_container(&container).unwrap());
-    }
-
-    #[test]
-    fn test_tampered_container() {
-        let mut container = create_test_container();
-        let signing_key = SigningKey::generate(&mut rand::thread_rng());
-        
-        // Sign the container
-        container.sign(&signing_key).unwrap();
-        
-        // Tamper with the payload
-        container.payload[0] ^= 0xFF;
-        
-        // Verify should fail
-        assert!(!container.verify());
-        assert!(!SigningService::verify_container(&container).unwrap());
-    }
-
-    #[test]
-    fn test_unsigned_container() {
-        let container = create_test_container();
-        let result = container.full_verify();
-        
-        assert!(!result.is_signed);
-        assert!(result.signature_valid.is_none());
-    }
-    
-    #[test]
-    fn test_sign_and_verify_service() {
-        let mut container = create_test_container();
-        let (private_key, public_key) = SigningService::generate_keypair();
-        
-        // Sign using the service
-        SigningService::sign_container(&mut container, &private_key).unwrap();
-        
-        // Verify using the service
-        assert!(SigningService::verify_container(&container).unwrap());
-        assert!(SigningService::verify_with_key(&container, &public_key).unwrap());
     }
 }

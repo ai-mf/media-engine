@@ -99,7 +99,7 @@ fn determine_and_embed(
     if is_png || is_wav || is_mp4 {
         // Re-embed in the same format
         println!("   Preserving original media format");
-        (ctx.embed_function)(&container.payload, container)
+        (ctx.embed_function)(&original_data, container)
     } else {
         // Just serialize the container
         println!("   Saving as pure AI container");

@@ -58,35 +58,6 @@ impl MediaProcessor for UniversalParser {
         }
     }
     
-
-    /*
-    async fn parse_input(&self, data: &[u8], format: InputFormat, rules: &ValidationRules) -> Result<ParsedMedia> {
-        match format {
-            InputFormat::Json => {
-                // Auto-detect from JSON content
-                let text = std::str::from_utf8(data)?;
-                if text.contains("\"samples\"") {
-                    AudioParser::parse_audio(data, format, rules)
-                } else if text.contains("\"pixels\"") {
-                    ImageParser::parse_image(data, format, rules)
-                } else if text.contains("\"frames\"") {
-                    VideoParser::parse_video(data, format, rules)
-                } else {
-                    anyhow::bail!("Unable to determine media type from JSON content")
-                }
-            }
-            InputFormat::Raw => {
-                anyhow::bail!("Raw format requires explicit media type")
-            }
-            InputFormat::Encoded => {
-                self.decode_media(data).await
-            }
-            InputFormat::Unknown => {
-                anyhow::bail!("Unknown input format")
-            }
-        }
-    }
-    */
     async fn encode_media(&self, media: &ParsedMedia) -> Result<Vec<u8>> {
         match media {
             ParsedMedia::Audio(audio) => AudioParser::encode_to_wav(audio),

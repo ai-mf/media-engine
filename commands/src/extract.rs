@@ -28,7 +28,7 @@ impl CommandExecutor for ExtractCommand {
         if args.metadata_only {
             // Extract only the metadata as JSON
             progress.set_message("Extracting metadata...");
-            let metadata_json = extract_metadata_json(&container)?;
+            let metadata_json = extract_metadata_json(&container, &data)?;
             std::fs::write(&args.output, &metadata_json)
                 .context(format!("Failed to write metadata: {}", args.output.display()))?;
             
@@ -36,10 +36,10 @@ impl CommandExecutor for ExtractCommand {
         } else {
             // Extract raw media payload
             progress.set_message("Extracting media payload...");
-            std::fs::write(&args.output, &container.payload)
+            std::fs::write(&args.output, &data)
                 .context(format!("Failed to write: {}", args.output.display()))?;
             
-            let size = human_bytes(container.payload.len());
+            let size = human_bytes(data.len());
             progress.finish_with_message(&format!("✅ Media extracted to: {} ({})", args.output.display(), size));
             
             // Print extraction details
@@ -61,7 +61,7 @@ impl CommandExecutor for ExtractCommand {
     fn description() -> &'static str { "Extract raw media from AI container" }
 }
 
-fn extract_metadata_json(container: &AiContainer) -> Result<Vec<u8>> {
+fn extract_metadata_json(container: &AiContainer, data: &Vec<u8>) -> Result<Vec<u8>> {
     let metadata = serde_json::json!({
         "ai_metadata": {
             "model_name": container.metadata.model_name,
@@ -87,7 +87,7 @@ fn extract_metadata_json(container: &AiContainer) -> Result<Vec<u8>> {
         "file_info": {
             "media_type": format!("{:?}", container.media_type),
             "encoding": container.encoding,
-            "payload_size": container.payload.len(),
+            "payload_size":  data.len() as u64,
         }
     });
 

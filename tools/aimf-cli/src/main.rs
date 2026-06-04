@@ -13,38 +13,7 @@ use media_engine_commands::{
     genkey::GenKeyCommand,
 };
 use media_engine_commands::CommandExecutor;
-use cli_common::{audio_context, image_context, video_context};
-use aimf_core::{MediaType, AiContainer};
-use aimf_audio_codec::{embed_aaud_into_wav, extract_aaud_from_wav};
-use aimf_image_codec::{embed_aimg_into_png, extract_aimg_from_png};
-use aimf_video_codec::{embed_avid_into_mp4, extract_avid_from_mp4};
-
-#[allow(unused)]
-fn universal_embed(data: &[u8], container: &AiContainer) -> anyhow::Result<Vec<u8>> {
-    match container.media_type {
-        MediaType::Audio => embed_aaud_into_wav(data, container)
-            .map_err(|e| anyhow::anyhow!("Audio embedding failed: {}", e)),
-        MediaType::Image => embed_aimg_into_png(data, container)
-            .map_err(|e| anyhow::anyhow!("Image embedding failed: {}", e)),
-        MediaType::Video => embed_avid_into_mp4(data, container)
-            .map_err(|e| anyhow::anyhow!("Video embedding failed: {}", e)),
-    }
-}
-
-#[allow(unused)]
-fn universal_extract(data: &[u8]) -> anyhow::Result<AiContainer> {
-    if let Ok(c) = extract_aimg_from_png(data) { 
-        return Ok(c);
-    }
-    if let Ok(c) = extract_aaud_from_wav(data) { 
-        return Ok(c);
-    }
-    if let Ok(c) = extract_avid_from_mp4(data) { 
-        return Ok(c);
-    }
-    AiContainer::deserialize(data)
-        .map_err(|e| anyhow::anyhow!("Failed to deserialize container: {}", e))
-}
+use cli_common::{audio_context, image_context, video_context, universal_context};
 
 #[derive(Parser)]
 #[command(name = "aimf", about = "AI Media Format Tool (Universal)", version = env!("CARGO_PKG_VERSION"))]
@@ -84,11 +53,8 @@ async fn main() -> anyhow::Result<()> {
             MediaTypeArg::Video => video_context(cli.verbose, !cli.no_progress, cli.c2pa),
         }
     } else {
-        // Universal mode - detect from input
-        let mut ctx = audio_context(cli.verbose, !cli.no_progress, cli.c2pa);
-        ctx.embed_function = Box::new(universal_embed);
-        ctx.extract_function = Box::new(universal_extract);
-        ctx
+        // Universal mode with proper context
+        universal_context(cli.verbose, !cli.no_progress, cli.c2pa)
     };
 
     match cli.command {
@@ -104,3 +70,4 @@ async fn main() -> anyhow::Result<()> {
         Commands::GenKey(a) => GenKeyCommand::execute(a, &ctx).await,
     }
 }
+

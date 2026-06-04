@@ -50,7 +50,7 @@ mod tests {
         let mut container = create_test_container();
         container.sign(&signing_key).unwrap();
         
-        assert!(container.full_verify().unwrap());
+        assert!(container.full_verify(media_bytes).unwrap());
     }
 }
 
@@ -91,7 +91,7 @@ fn verify_batch(files: Vec<PathBuf>) -> Vec<Result<bool>> {
         .map(|path| {
             let data = std::fs::read(path)?;
             let container = extract_aimg_from_png(&data)?;
-            container.full_verify()
+            container.full_verify(media_bytes)
         })
         .collect()
 }
@@ -118,7 +118,7 @@ impl VerificationCache {
             }
         }
         
-        let valid = extract_aimg_from_png(data)?.full_verify()?;
+        let valid = extract_aimg_from_png(data)?.full_verify(media_bytes)?;
         self.cache.insert(hash, (valid, SystemTime::now()));
         Ok(valid)
     }

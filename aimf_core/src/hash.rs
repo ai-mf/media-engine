@@ -2,7 +2,7 @@
 use sha2::{Sha256, Digest};
 use super::AiMetadata;
 
-pub fn compute_hash(payload: &[u8], metadata: &AiMetadata, encoding: &str) -> [u8; 32] {
+pub fn compute_hash(media_bytes: &[u8], metadata: &AiMetadata, encoding: &str) -> [u8; 32] {
     let mut hasher = Sha256::new();
     
     // Hash metadata
@@ -30,7 +30,7 @@ pub fn compute_hash(payload: &[u8], metadata: &AiMetadata, encoding: &str) -> [u
     hasher.update(&metadata.timestamp.to_le_bytes());
     
     // Hash payload
-    hasher.update(payload);
+    hasher.update(media_bytes);
     
     hasher.finalize().into()
 }

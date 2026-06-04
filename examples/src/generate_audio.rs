@@ -29,7 +29,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Use aaud binary for audio
     let mut child = std::process::Command::new("cargo")
         .args(&["run", "--bin", "aaud", "--", "json",
-                "--output", "test_audio.aaud",
+                "--output", "test_audio1.aaud",
                 "--model", "test-ai",
                 "--version", "1.0",
                 "--key", "private.key",

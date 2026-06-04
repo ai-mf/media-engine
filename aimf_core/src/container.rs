@@ -11,7 +11,6 @@ pub struct AiContainer {
     pub encoding: String,
     pub payload_type: PayloadType,
     pub metadata: AiMetadata,
-    pub payload: Vec<u8>,
     pub hash: [u8; 32],
 }
 
@@ -21,16 +20,15 @@ impl AiContainer {
         encoding: String,
         payload_type: PayloadType,
         metadata: AiMetadata,
-        payload: Vec<u8>,
+        media_bytes: &[u8],
     ) -> Result<Self, CoreError> {
-        let hash = compute_hash(&payload, &metadata, encoding.as_str());
+        let hash = compute_hash(media_bytes, &metadata, encoding.as_str());
 
         Ok(Self {
             media_type,
             encoding,
             payload_type,
             metadata,
-            payload,
             hash,
         })
     }
@@ -48,7 +46,6 @@ impl AiContainer {
             encoding: self.encoding.clone(),
             payload_type: self.payload_type.clone(),
             metadata: signing_metadata,
-            payload: self.payload.clone(),
             hash: self.hash,
         };
         
@@ -63,9 +60,6 @@ impl AiContainer {
         
         self.metadata.signature = Some(crypto_sig.signature);
         self.metadata.public_key = Some(crypto_sig.public_key);
-        
-        // Recompute hash after adding signature
-        self.hash = compute_hash(&self.payload, &self.metadata, &self.encoding);
         
         Ok(())
     }
@@ -85,8 +79,8 @@ impl AiContainer {
     }
     
     // Complete verification (hash + signature)
-    pub fn full_verify(&self) -> VerificationResult {
-        let hash_valid = self.verify();
+    pub fn full_verify(&self, media_bytes: &[u8]) -> VerificationResult {
+        let hash_valid = self.verify(media_bytes);
         
         let signature_valid = if self.metadata.is_signed() {
             Some(self.verify_signature())
@@ -100,10 +94,11 @@ impl AiContainer {
             is_signed: self.metadata.is_signed(),
         }
     }
-    pub fn verify(&self) -> bool {
-        let computed_hash = compute_hash(&self.payload, &self.metadata, &self.encoding);
+    pub fn verify(&self, media_bytes: &[u8]) -> bool {
+        let computed_hash = compute_hash(media_bytes, &self.metadata, &self.encoding);
         self.hash == computed_hash
     }
+    
     
     pub fn serialize(&self) -> Result<Vec<u8>, CoreError> {
         // Binary format: [HEADER_SIZE: u32][HEADER_JSON][RAW_PAYLOAD]
@@ -115,26 +110,23 @@ impl AiContainer {
             hash: self.hash,
         };
         
-        let header_json = serde_json::to_string(&header)
+        let header_json = serde_cbor::to_vec(&header)
             .map_err(|e| CoreError::SerializationError(e.to_string()))?;
         
-        let header_bytes = header_json.as_bytes();
+        let header_bytes = header_json;
         let header_size = header_bytes.len() as u32;
         
-        let total_size = 4 + header_size as usize + self.payload.len();
+        let total_size = 4 + header_size as usize /*+ self.payload.len()*/;
         let mut result = Vec::with_capacity(total_size);
         
         // Write header size (4 bytes, little endian)
         result.extend_from_slice(&header_size.to_le_bytes());
         
         // Write header JSON
-        result.extend_from_slice(header_bytes);
+        result.extend_from_slice(&header_bytes);
         
-        // Write raw payload
-        result.extend_from_slice(&self.payload);
-        
-        println!("DEBUG serialize: header_size={}, payload_size={}, total={}", 
-                 header_size, self.payload.len(), result.len());
+        println!("DEBUG serialize: header_size={}, payload_size=__, total={}", 
+                 header_size/*, self.payload.len()*/, result.len());
         println!("DEBUG first 20 bytes: {:02x?}", &result[0..20.min(result.len())]);
         
         Ok(result)
@@ -150,23 +142,16 @@ impl AiContainer {
         if data.len() < 4 + header_size {
             return Err(CoreError::DeserializationError("Incomplete header".to_string()));
         }
-        
-        let header_json = std::str::from_utf8(&data[4..4+header_size])
+
+        let header: Header = serde_cbor::from_slice(&data[4..4+header_size])
             .map_err(|e| CoreError::DeserializationError(e.to_string()))?;
-        
-        println!("DEBUG deserialize: header_json = {}", header_json);
-        
-        let header: Header = serde_json::from_str(header_json)
-            .map_err(|e| CoreError::DeserializationError(e.to_string()))?;
-        
-        let payload = data[4+header_size..].to_vec();
+    
         
         Ok(AiContainer {
             media_type: header.media_type,
             encoding: header.encoding,
             payload_type: header.payload_type,
             metadata: header.metadata,
-            payload,
             hash: header.hash,
         })
     }

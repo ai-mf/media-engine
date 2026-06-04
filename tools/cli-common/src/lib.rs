@@ -92,3 +92,48 @@ pub fn video_context(verbose: bool, show_progress: bool, c2pa_enabled: bool) -> 
         processor: Box::new(UniversalParser),
     }
 }
+pub fn universal_context(verbose: bool, show_progress: bool, c2pa_enabled: bool) -> CommandContext {
+    CommandContext {
+        verbose,
+        show_progress,
+        c2pa_enabled,
+        media_type: MediaType::Video, // Default to video for validation
+        format_extension: "auto".into(),
+        embed_function: Box::new(|data, container| {
+            match container.media_type {
+                MediaType::Audio => embed_aaud_into_wav(data, container)
+                    .map_err(|e| anyhow::anyhow!("Audio embedding failed: {}", e)),
+                MediaType::Image => embed_aimg_into_png(data, container)
+                    .map_err(|e| anyhow::anyhow!("Image embedding failed: {}", e)),
+                MediaType::Video => embed_avid_into_mp4(data, container)
+                    .map_err(|e| anyhow::anyhow!("Video embedding failed: {}", e)),
+            }
+        }),
+        extract_function: Box::new(|data| {
+            if let Ok(c) = extract_aimg_from_png(data) { 
+                return Ok(c);
+            }
+            if let Ok(c) = extract_aaud_from_wav(data) { 
+                return Ok(c);
+            }
+            if let Ok(c) = extract_avid_from_mp4(data) { 
+                return Ok(c);
+            }
+            aimf_core::AiContainer::deserialize(data)
+                .map_err(|e| anyhow::anyhow!("Failed to deserialize container: {}", e))
+        }),
+        validation_rules: ValidationRules {
+            max_dimension: 8192,        // Allow up to 8K video
+            max_sample_rate: 384_000,
+            max_audio_samples: 100_000_000,  // ~30 min at 44.1kHz
+            max_video_frames: 1_000_000,     // ~9 hours at 30fps
+            max_memory_bytes: 4_000_000_000, // 4GB for processing
+            max_file_size: 10_000_000_000,   // 10GB
+        },
+        detector: Box::new(DefaultMediaDetector),
+        processor: Box::new(UniversalParser),
+    }
+}
+
+
+

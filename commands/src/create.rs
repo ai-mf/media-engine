@@ -65,7 +65,7 @@ impl CommandExecutor for CreateCommand {
             ctx.format_extension.clone(),
             PayloadType::Encoded,
             metadata,
-            encoded.clone(),
+            &encoded,//encoded.clone(),
         ).context("Failed to create AI container")?;
 
         // Sign if key provided

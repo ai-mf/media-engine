@@ -209,7 +209,7 @@ fn process_single_file(
     }
     
     // Re-embed
-    let final_data = (ctx.embed_function)(&container.payload, &container)?;
+    let final_data = (ctx.embed_function)(&data, &container)?;
     
     // Write output
     let output = get_output_path(file, &args.output_dir);

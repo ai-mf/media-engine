@@ -115,7 +115,7 @@ rust
 async fn upload_handler(file: Vec<u8>) -> Result<()> {
     let container = extract_aimg_from_png(&file)?;
     
-    match container.full_verify() {
+    match container.full_verify(media_bytes) {
         Ok(true) => {
             // Process verified content
             process_payload(container.payload)

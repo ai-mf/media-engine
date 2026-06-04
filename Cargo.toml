@@ -25,13 +25,14 @@ resolver = "2"
 [workspace.dependencies]
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
+serde_cbor = "0.10"
 anyhow = "1.0"
 clap = { version = "4.0", features = ["derive"] }
 ed25519-dalek = { version = "2.0", features = ["rand_core"] }
 rand = "0.8"
 image = "0.25"
+png = "0.18.1"
 ffmpeg-sidecar = "1.2.0"  # Auto-downloads FFmpeg binary
-once_cell = "1.19"  # For stable Rust instead of OnceLock
 hound = "3.5"
 thiserror = "2"
 pyo3 = "0.21"  # Add this for Python bindings
