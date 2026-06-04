@@ -30,7 +30,4 @@ ed25519-dalek = { workspace = true }
 tokio = { workspace = true }
 anyhow = { workspace = true }
 thiserror = { workspace = true }
-serde_json = { workspace = true }
-hound = { workspace = true }
 rand = { workspace = true }
-hex = { workspace = true }

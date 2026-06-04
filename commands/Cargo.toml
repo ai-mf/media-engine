@@ -24,7 +24,6 @@ indicatif = { workspace=true }
 # Async
 tokio = { workspace=true, optional=true}
 async-trait = { workspace=true, optional=true}
-futures = { workspace=true }
 
 # Serialization
 serde = { workspace=true }
