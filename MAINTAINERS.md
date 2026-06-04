@@ -37,7 +37,7 @@ This doc is for maintainers of the AI Media Engine project. If you're a contribu
 ```bash
 # 1. Update version in Cargo.toml files
 cd /path/to/media-engine
-sed -i 's/version = "0.1.0"/version = "0.2.0"/' */Cargo.toml
+sed -i 's/version = "1.0.0"/version = "0.2.0"/' */Cargo.toml
 
 # 2. Update CHANGELOG.md
 # Move [Unreleased] to new version, add date

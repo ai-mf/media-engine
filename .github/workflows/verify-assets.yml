@@ -33,27 +33,6 @@ CREATE TABLE ai_assets (
 INSERT INTO ai_assets (path, model_name, hash, created_at)
 VALUES ('file.aimg', 'StableDiffusion', '5e8848...', NOW());
 
-Testing Strategy
-Unit test with test keys
-rust
-
-#[cfg(test)]
-mod tests {
-    use ed25519_dalek::SigningKey;
-    use rand::rngs::OsRng;
-
-    #[test]
-    fn test_sign_verify() {
-        let mut csprng = OsRng{};
-        let signing_key = SigningKey::generate(&mut csprng);
-        
-        let mut container = create_test_container();
-        container.sign(&signing_key).unwrap();
-        
-        assert!(container.full_verify(media_bytes).unwrap());
-    }
-}
-
 Integration test with real files
 bash
 
@@ -90,6 +69,7 @@ fn verify_batch(files: Vec<PathBuf>) -> Vec<Result<bool>> {
     files.par_iter()
         .map(|path| {
             let data = std::fs::read(path)?;
+            let media_bytes = &data;
             let container = extract_aimg_from_png(&data)?;
             container.full_verify(media_bytes)
         })

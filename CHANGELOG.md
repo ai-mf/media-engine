@@ -15,7 +15,7 @@ Format based on [Keep a Changelog](https://keepachangelog.com/), versioning foll
 ### Fixed
 - (nothing yet)
 
-## [0.1.0] - 2026-01-15
+## [1.0.0] - 2026-01-15
 
 ### Added
 - Initial release
@@ -26,7 +26,8 @@ Format based on [Keep a Changelog](https://keepachangelog.com/), versioning foll
 - Ed25519 signing and verification
 - Batch processing (`batch` command)
 - JSON and raw input ingestion
-- Examples: `ai_generate_video_simple`, `ai_generate_image`, `ai_generate_audio`
+- Examples : Rust ->`ai_generate_video_simple`, `ai_generate_image`, `ai_generate_audio`
+-          : Python ->`audio_generation`, `image_generation`, `video_generation`
 - Documentation: USAGE, BATCH, API, SCHEMA, WORKFLOWS
 
 ### Security
@@ -34,4 +35,4 @@ Format based on [Keep a Changelog](https://keepachangelog.com/), versioning foll
 - Optional Ed25519 signatures for authenticity
 - No hardcoded keys or backdoors
 
-[0.1.0]: https://github.com/ai-mf/media-engine/releases/tag/v0.1.0
+[1.0.0]: https://github.com/ai-mf/media-engine/releases/tag/v1.0.0

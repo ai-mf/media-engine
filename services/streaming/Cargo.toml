@@ -1,8 +1,11 @@
 # media-engine/services/streaming/Cargo.toml
 [package]
 name = "media-engine-streaming"
-version = "0.1.0"
+version = "1.0.0"
 edition = "2024"
+license = "Apache-2.0"
+authors = ["AI MEDIA FORMATS CONTRIBUTORS <aimediaformat@gmail.com, aimediaformats@gmail.com>"]
+repository = "https://github.com/ai-mf/media-engine/"
 
 [dependencies]
 anyhow = {workspace=true}

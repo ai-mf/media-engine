@@ -7,7 +7,7 @@ long_description = readme_path.read_text() if readme_path.exists() else ""
 
 setup(
     name="aimf",
-    version="0.1.0",
+    version="1.0.0",
     author="AIMF Team",
     author_email="aimediaformat@gmail.com",
     description="AI Media Format - Python wrapper for authenticating AI-generated audio, images, and video",
@@ -74,19 +74,19 @@ class DownloadBinary(install):
         # Determine download URL based on platform
         if system == "Linux":
             if arch in ["x86_64", "amd64"]:
-                url = "https://github.com/ai-mf/media-engine/releases/download/v0.1.0/aimf-linux-x86_64.tar.gz"
+                url = "https://github.com/ai-mf/media-engine/releases/download/v1.0.0/aimf-linux-x86_64.tar.gz"
             elif arch in ["aarch64", "arm64"]:
-                url = "https://github.com/ai-mf/media-engine/releases/download/v0.1.0/aimf-linux-arm64.tar.gz"
+                url = "https://github.com/ai-mf/media-engine/releases/download/v1.0.0/aimf-linux-arm64.tar.gz"
             else:
                 print(f"⚠️ Unsupported architecture: {arch}")
                 return
         elif system == "Darwin":  # macOS
             if arch == "x86_64":
-                url = "https://github.com/ai-mf/media-engine/releases/download/v0.1.0/aimf-macos-x86_64.tar.gz"
+                url = "https://github.com/ai-mf/media-engine/releases/download/v1.0.0/aimf-macos-x86_64.tar.gz"
             else:  # Apple Silicon
-                url = "https://github.com/ai-mf/media-engine/releases/download/v0.1.0/aimf-macos-arm64.tar.gz"
+                url = "https://github.com/ai-mf/media-engine/releases/download/v1.0.0/aimf-macos-arm64.tar.gz"
         elif system == "Windows":
-            url = "https://github.com/ai-mf/media-engine/releases/download/v0.1.0/aimf-windows-x86_64.zip"
+            url = "https://github.com/ai-mf/media-engine/releases/download/v1.0.0/aimf-windows-x86_64.zip"
         else:
             print(f"⚠️ Unsupported OS: {system}")
             return
@@ -144,7 +144,7 @@ class DownloadBinary(install):
 
 setup(
     name="aimf",
-    version="0.1.0",
+    version="1.0.0",
     author="AIMF Contributors",
     author_email="aimediaformat@gmail.com",
     description="AI Media Format - Python wrapper bundled binary for authenticating AI-generated audio, images, and video",

@@ -17,6 +17,7 @@ pub enum AudioCodecError {
     HexError(#[from] hex::FromHexError),
 }
 
+#[allow(unused_variables)]
 pub fn embed_aaud_into_wav(wav_data: &[u8], container: &AiContainer) -> Result<Vec<u8>, AudioCodecError> {
     let container_bytes = container.serialize()?;
     

@@ -17,16 +17,16 @@ def install_aimf_binary():
     # Map to release filenames
     if system == "Linux":
         if arch in ["x86_64", "amd64"]:
-            url = "https://github.com/ai-mf/media-engine/releases/download/v0.1.0/aimf-linux-x86_64.tar.gz"
+            url = "https://github.com/ai-mf/media-engine/releases/download/v1.0.0/aimf-linux-x86_64.tar.gz"
         elif arch in ["aarch64", "arm64"]:
-            url = "https://github.com/ai-mf/media-engine/releases/download/v0.1.0/aimf-linux-arm64.tar.gz"
+            url = "https://github.com/ai-mf/media-engine/releases/download/v1.0.0/aimf-linux-arm64.tar.gz"
     elif system == "Darwin":  # macOS
         if arch == "x86_64":
-            url = "https://github.com/ai-mf/media-engine/releases/download/v0.1.0/aimf-macos-x86_64.tar.gz"
+            url = "https://github.com/ai-mf/media-engine/releases/download/v1.0.0/aimf-macos-x86_64.tar.gz"
         else:  # M1/M2
-            url = "https://github.com/ai-mf/media-engine/releases/download/v0.1.0/aimf-macos-arm64.tar.gz"
+            url = "https://github.com/ai-mf/media-engine/releases/download/v1.0.0/aimf-macos-arm64.tar.gz"
     elif system == "Windows":
-        url = "https://github.com/ai-mf/media-engine/releases/download/v0.1.0/aimf-windows-x86_64.zip"
+        url = "https://github.com/ai-mf/media-engine/releases/download/v1.0.0/aimf-windows-x86_64.zip"
     else:
         raise RuntimeError(f"Unsupported platform: {system}")
     

@@ -1,12 +1,12 @@
 # tools/aaud-cli/Cargo.toml (audio tool)
 [package]
 name = "aimf-audio-cli"
-version = "0.1.0"
+version = "1.0.0"
 edition = "2024"
 
 description = "AAUD - AI Audio Format container (audio-only)"
 license = "Apache-2.0"
-authors = ["AI MEDIA FORMAT CONTRIBUTORS <aimediaformat@gmail.com>"]
+authors = ["AI MEDIA FORMATS CONTRIBUTORS <aimediaformat@gmail.com, aimediaformats@gmail.com>"]
 repository = "https://github.com/ai-mf/media-engine/"
 keywords = ["ai", "audio", "format", "container"]
 
@@ -19,10 +19,10 @@ name = "aaud_lib"
 path = "src/lib.rs"
 
 [dependencies]
-aimf_core = { path = "../../aimf_core", version = "0.1.0"}
-aimf_audio_codec = { path = "../../codecs/audio_codec", version = "0.1.0"}
-media-engine-commands = { path = "../../commands", version = "0.1.0"}
-cli-common = { path = "../cli-common", version = "0.1.0"}
+aimf_core = { path = "../../aimf_core", version = "1.0.0"}
+aimf_audio_codec = { path = "../../codecs/audio_codec", version = "1.0.0"}
+media-engine-commands = { path = "../../commands", version = "1.0.0"}
+cli-common = { path = "../cli-common", version = "1.0.0"}
 
 
 clap = { workspace = true }
