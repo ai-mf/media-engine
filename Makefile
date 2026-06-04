@@ -164,7 +164,7 @@ release-build: release ## Build release binaries for all platforms (requires cro
 release-upload: ## Upload release binaries to GitHub (requires GITHUB_TOKEN)
 	@echo "$(YELLOW)📤 Uploading release artifacts...$(RESET)"
 	@echo "$(RED)This should be done by GitHub Actions, not manually$(RESET)"
-	@echo "  Use: git tag v1.0.0 && git push origin v1.0.0"
+	@echo "  Use: git tag v0.1.0 && git push origin v0.1.0"
 
 docker-build: ## Build Docker image
 	docker build -t aimf:latest -f Dockerfile .
