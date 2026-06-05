@@ -94,6 +94,16 @@ See CONTRIBUTING.md. TL;DR:
     aimf_core/ changes need an issue first
 
     Use the PR template
+    
+## Compatibility
+
+Tested and working with:
+- VLC 3.x
+- Firefox 100+
+- Ubuntu Image Viewer (GNOME 42+)
+
+Note: Some ancient or overly strict parsers may reject files, 
+but all modern software handles our embedding method.
 
 📄 License
 

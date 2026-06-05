@@ -17,6 +17,9 @@ pub enum ImageCodecError {
 
 // PNG spec allows extra data after IEND - most readers ignore it
 pub fn embed_aimg_into_png(png_data: &[u8], container: &AiContainer) -> Result<Vec<u8>, ImageCodecError> {
+    // Note: This appends data after IEND chunk which works in most PNG viewers
+    // For better compatibility, use zTXt chunk (will implement post-MVP)
+    
     let container_bytes = container.serialize()?;
     
     println!("DEBUG: Embedding {} bytes of metadata into PNG", container_bytes.len());
