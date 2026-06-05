@@ -75,7 +75,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut child = std::process::Command::new("cargo")
         .args(&[
             "run", "--bin", "avid", "--", "json",
-            "--output", "test_video_10sec1.avid",
+            "--output", "test_video_10sec.avid",
             "--model", "test-ai",
             "--version", "1.0",
             "--key", "private.key",
