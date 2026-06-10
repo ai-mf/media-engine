@@ -9,6 +9,9 @@ import zipfile
 import os
 from pathlib import Path
 
+# Get version from environment variable (set by GitHub Actions)
+version = os.environ.get('RELEASE_VERSION', '1.0.0')
+
 # Read README
 readme_path = Path(__file__).parent / "README.md"
 long_description = readme_path.read_text() if readme_path.exists() else ""
