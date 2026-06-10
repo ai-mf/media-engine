@@ -1,5 +1,5 @@
-use serde_json::json;
 use std::io::Write;
+use std::process::{Command, Stdio};
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("🤖 Simulating AI audio generation...");
@@ -16,27 +16,30 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         samples.push(sample as f32);
     }
     
-    let ai_output = json!({
-        "type": "audio",
-        "sample_rate": sample_rate,
-        "channels": 1,
-        "format": "f32",
-        "samples": samples,
-        "model": "test-ai-v1",
-        "duration": duration
-    });
+    // Convert f32 samples to PCM16 bytes
+    let mut audio_bytes = Vec::new();
+    for &sample in &samples {
+        let sample_i16 = (sample * i16::MAX as f32) as i16;
+        audio_bytes.extend_from_slice(&sample_i16.to_le_bytes());
+    }
     
-    let mut child = std::process::Command::new("cargo")
-        .args(&["run", "--bin", "aimf", "--", "json",
-                "--output", "test_audio.aaud",
-                "--model", "test-ai",
-                "--version", "1.0", 
-                "--key", "private.key"])
-        .stdin(std::process::Stdio::piped())
+    // Send to aimf RAW
+    let mut child = Command::new("cargo")
+        .args(&[
+            "run", "--bin", "aimf", "--", "raw",
+            "--output", "test_audio.aaud",
+            "--model", "test-ai",
+            "--version", "1.0",
+            "--type", "audio",
+            "--sample-rate", &sample_rate.to_string(),
+            "--channels", "1",
+            "--key", "private.key"
+        ])
+        .stdin(Stdio::piped())
         .spawn()?;
     
     let mut stdin = child.stdin.take().unwrap();
-    stdin.write_all(ai_output.to_string().as_bytes())?;
+    stdin.write_all(&audio_bytes)?;
     drop(stdin);
     
     child.wait()?;

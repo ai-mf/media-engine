@@ -1,10 +1,10 @@
-use serde_json::json;
 use std::io::Write;
+use std::process::{Command, Stdio};
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("🤖 Simulating AI image generation...");
     
-    // Create a simple 4x4 RGB image with a pattern
+    // Create a simple RGB image with a pattern
     let width = 1250;
     let height = 400;
     let mut pixels = Vec::new();
@@ -13,8 +13,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     for y in 0..height {
         for x in 0..width {
             // Red gradient, Green gradient, Blue checkerboard
-            let r = (x * 85) as u8;      // 0, 85, 170, 255
-            let g = (y * 85) as u8;      // 0, 85, 170, 255
+            let r = (x * 85) as u8;
+            let g = (y * 85) as u8;
             let b = if (x + y) % 2 == 0 { 255 } else { 0 };
             pixels.push(r);
             pixels.push(g);
@@ -22,29 +22,28 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         }
     }
     
-    // AI outputs JSON format
-    let ai_output = json!({
-        "type": "image",
-        "width": width,
-        "height": height,
-        "format": "rgb8",
-        "pixels": pixels,
-        "model": "test-ai-v1",
-        "confidence": 0.95
-    });
+    let image_size_mb = pixels.len() / (1024 * 1024);
+    println!("✓ Generated image: {}x{} ({} MB raw RGB)", width, height, image_size_mb);
     
-    // Send to aimf json
-    let mut child = std::process::Command::new("cargo")
-        .args(&["run", "--bin", "aimf", "--", "json", 
-                "--output", "test_image.aimg",
-                "--model", "test-ai",
-                "--version", "1.0",
-                "--key", "private.key"])
-        .stdin(std::process::Stdio::piped())
+    // Send to aimf RAW (no JSON wrapping!)
+    let mut child = Command::new("cargo")
+        .args(&[
+            "run", "--bin", "aimf", "--", "raw",
+            "--output", "test_image.aimg",
+            "--model", "test-ai",
+            "--version", "1.0",
+            "--type", "image",
+            "--width", &width.to_string(),
+            "--height", &height.to_string(),
+            "--format", "rgb8",
+            "--key", "private.key"
+        ])
+        .stdin(Stdio::piped())
         .spawn()?;
     
+    // Send raw RGB pixels directly (no JSON!)
     let mut stdin = child.stdin.take().unwrap();
-    stdin.write_all(ai_output.to_string().as_bytes())?;
+    stdin.write_all(&pixels)?;
     drop(stdin);
     
     child.wait()?;

@@ -10,7 +10,6 @@
 - [x] AAUD (WAV embedding)
 - [x] AVID (MP4 embedding)
 - [x] CLI tools (aimf, aimg, aaud, avid)
-- [x] JSON ingestion
 - [x] Raw data ingestion
 - [x] Batch processing
 - [x] Examples (video, image, audio)

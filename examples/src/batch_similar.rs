@@ -1,14 +1,14 @@
 //! Batch Process Similar Files
 //! 
-//! This example processes multiple JSON files of the same type (audio)
-//! and converts them to AAUD format with signing.
+//! This example processes multiple audio files and converts them to AAUD format using RAW binary.
 
 use std::path::PathBuf;
 use std::fs;
 use std::io::Write;
+use std::process::{Command, Stdio};
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-    println!("🚀 Batch Processing: Converting multiple JSON files to AAUD format");
+    println!("🚀 Batch Processing: Converting multiple audio files to AAUD format");
     
     // Create output directory
     let output_dir = PathBuf::from("./batch_output/audio");
@@ -19,47 +19,45 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let key_path = output_dir.join("batch.key");
     generate_key(&key_path)?;
     
-    // Sample JSON files to process (you would have these files)
-    let json_files = vec![
-        ("audio1.json", 44100, vec![0.1, -0.2, 0.3, -0.1, 0.4]),
-        ("audio2.json", 22050, vec![0.5, -0.3, 0.2, -0.4, 0.1]),
-        ("audio3.json", 48000, vec![0.2, -0.1, 0.4, -0.3, 0.2]),
+    // Sample audio data to process
+    let audio_data = vec![
+        (44100, vec![0.1, -0.2, 0.3, -0.1, 0.4]),
+        (22050, vec![0.5, -0.3, 0.2, -0.4, 0.1]),
+        (48000, vec![0.2, -0.1, 0.4, -0.3, 0.2]),
     ];
     
-    println!("\n📦 Processing {} audio files...\n", json_files.len());
+    println!("\n📦 Processing {} audio files...\n", audio_data.len());
     
-    for (i, (filename, sample_rate, samples)) in json_files.iter().enumerate() {
-        let input_path = output_dir.join(filename);
+    for (i, (sample_rate, samples)) in audio_data.iter().enumerate() {
         let output_path = output_dir.join(format!("audio_{}.aaud", i + 1));
         
-        // Create JSON content
-        let json_content = serde_json::json!({
-            "sample_rate": sample_rate,
-            "channels": 1,
-            "samples": samples,
-            "model": "BatchModel",
-            "version": "1.0"
-        });
+        // Convert f32 samples to PCM16 bytes
+        let mut audio_bytes = Vec::new();
+        for &sample in samples {
+            let sample_i16 = (sample * i16::MAX as f64) as i16;
+            audio_bytes.extend_from_slice(&sample_i16.to_le_bytes());
+        }
         
-        // Write JSON file
-        fs::write(&input_path, serde_json::to_string_pretty(&json_content)?)?;
+        println!("[{}/{}] Processing: audio_{}.aaud ({} Hz, {} samples)", 
+                 i + 1, audio_data.len(), i + 1, sample_rate, samples.len());
         
-        println!("[{}/{}] Processing: {}", i + 1, json_files.len(), filename);
-        
-        // Process with aaud
-        let mut child = std::process::Command::new("cargo")
+        // Process with aimf raw
+        let mut child = Command::new("cargo")
             .args(&[
-                "run", "--bin", "aaud", "--", "json",
+                "run", "--bin", "aimf", "--", "raw",
                 "--output", output_path.to_str().unwrap(),
                 "--model", "BatchModel",
                 "--version", "1.0",
+                "--type", "audio",
+                "--sample-rate", &sample_rate.to_string(),
+                "--channels", "1",
                 "--key", key_path.to_str().unwrap()
             ])
-            .stdin(std::process::Stdio::piped())
+            .stdin(Stdio::piped())
             .spawn()?;
         
         let mut stdin = child.stdin.take().unwrap();
-        stdin.write_all(serde_json::to_string(&json_content)?.as_bytes())?;
+        stdin.write_all(&audio_bytes)?;
         drop(stdin);
         
         child.wait()?;
@@ -68,11 +66,11 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     
     // Verify all created files
     println!("\n🔍 Verifying all created files...\n");
-    for i in 0..json_files.len() {
+    for i in 0..audio_data.len() {
         let file_path = output_dir.join(format!("audio_{}.aaud", i + 1));
         
         let status = std::process::Command::new("cargo")
-            .args(&["run", "--bin", "aaud", "--", "verify", file_path.to_str().unwrap()])
+            .args(&["run", "--bin", "aimf", "--", "verify", file_path.to_str().unwrap()])
             .status()?;
         
         if status.success() {
@@ -90,7 +88,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
 fn generate_key(path: &PathBuf) -> Result<(), Box<dyn std::error::Error>> {
     let status = std::process::Command::new("cargo")
-        .args(&["run", "--bin", "aaud", "--", "gen-key", "--output", path.to_str().unwrap()])
+        .args(&["run", "--bin", "aimf", "--", "gen-key", "--output", path.to_str().unwrap()])
         .status()?;
     
     if status.success() {

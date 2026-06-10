@@ -6,7 +6,7 @@ from aimf import ImageAI
 def main():
     print("🤖 Simulating AI image generation...")
     
-    # Create a simple pattern (smaller to save memory)
+    # Create a simple pattern
     width = 100
     height = 100
     pixels = []
@@ -21,9 +21,17 @@ def main():
             pixels.append(g)
             pixels.append(b)
     
-    # Use AIMF Python wrapper
+    # Generate signing key if needed
+    import os
+    key_path = "private.key"
+    if not os.path.exists(key_path):
+        from aimf import AIMF
+        AIMF.generate_key(key_path)
+    
+    # Create image using the wrapper
     image = ImageAI.from_pixels(pixels, width=width, height=height)
     image.with_model("test-ai", "1.0")
+    image.with_key(key_path)
     image.save("test_image.aimg")
     
     print("✅ Created test_image.aimg")

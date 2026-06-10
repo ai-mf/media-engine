@@ -4,7 +4,7 @@ use crate::common::*;
 use crate::utils::ProgressTracker;
 use anyhow::{Context, Result};
 use std::process::Command;
-use aimf_core::{AiContainer, MediaType};
+use aimf_core::{AiContainer, MediaType, debug_print};
 use std::path::PathBuf;
 use async_trait::async_trait;
 
@@ -63,8 +63,8 @@ impl CommandExecutor for ViewCommand {
             }
             Err(e) => {
                 progress.finish_with_error(&format!("⚠️  Could not open automatically: {}", e));
-                println!("📁 File saved at: {}", temp_path.display());
-                println!("💡 Open manually or use --no-open flag to skip auto-open");
+                debug_print!("📁 File saved at: {}", temp_path.display());
+                debug_print!("💡 Open manually or use --no-open flag to skip auto-open");
             }
         }
 

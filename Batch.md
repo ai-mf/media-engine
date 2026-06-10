@@ -16,7 +16,7 @@ cargo run --bin aimf -- batch [OPTIONS]
 
 | Option | Description |
 |--------|-------------|
-| `--input <PATTERN>` | Input file pattern (e.g., `*.aaud`, `*.json`, `*.raw`) |
+| `--input <PATTERN>` | Input file pattern (e.g., `*.aaud`, `*.raw`) |
 | `--output-dir <DIR>` | Output directory for processed files |
 | `--recursive` | Search subdirectories recursively |
 | `--parallel` | Process files in parallel |
@@ -71,26 +71,6 @@ cargo run --bin aaud -- batch --input "*.aaud" --sign --key private.key --output
 cargo run --bin aimg -- batch --input "*.aimg" --sign --key mykey.key --recursive
 ```
 
-### 4. Batch Create from JSON Files
-
-```bash
-# Create AAUD files from all JSON audio descriptions
-cargo run --bin aaud -- batch \
-  --input "*.json" \
-  --output-dir ./audio_output \
-  --model "MusicGen" \
-  --version "2.0"
-
-# Create AIMG files from all JSON images with parallel processing
-cargo run --bin aimg -- batch \
-  --input "*.json" \
-  --output-dir ./images \
-  --model "StableDiffusion" \
-  --version "3.0" \
-  --parallel \
-  --jobs 4
-```
-
 ### 5. Batch Create from Raw Files
 
 ```bash
@@ -142,7 +122,7 @@ cargo run --bin aimg -- batch --input "./extracted/*.png" --verify
 cargo run --bin aaud -- batch --input "*.aaud" --verify --dry-run
 
 # Check batch create operation
-cargo run --bin aimg -- batch --input "*.json" --output-dir ./out --dry-run
+cargo run --bin aimg -- batch --input "*.raw" --output-dir ./out --dry-run
 ```
 
 ## Batch Script Examples
@@ -192,33 +172,6 @@ cargo run --bin aaud -- batch \
 echo "✅ Signed files saved to $OUTPUT_DIR"
 ```
 
-### Batch Convert JSON Descriptions
-
-```bash
-#!/bin/bash
-# json_to_aimf.sh - Convert JSON files to AIMF format
-
-MODEL="GPT-4V"
-VERSION="1.0"
-
-for type in audio image video; do
-  case $type in
-    audio) BIN="aaud" ;;
-    image) BIN="aimg" ;;
-    video) BIN="avid" ;;
-  esac
-  
-  echo "📦 Converting ${type} JSON files..."
-  
-  cargo run --bin "$BIN" -- batch \
-    --input "*.${type}.json" \
-    --output-dir "./${type}_output" \
-    --model "$MODEL" \
-    --version "$VERSION" \
-    --parallel
-done
-```
-
 ## Performance Tips
 
 ### Parallel Processing
@@ -260,17 +213,6 @@ find . -name "*.aaud" -print0 | xargs -0 -P 4 -I {} \
 [5/5] ⚠️ file5.aaud - VALID but unsigned
 
 Summary: 3 valid, 1 corrupted, 1 unsigned
-```
-
-### Create Batch Output
-```
-📦 Batch creating from 3 JSON files...
-[1/3] ✅ test1.json -> test1.aaud (124KB)
-[2/3] ✅ test2.json -> test2.aaud (256KB)
-[3/3] ✅ test3.json -> test3.aaud (89KB)
-
-Summary: 3 created, 0 failed
-Total size: 469KB
 ```
 
 ## Error Handling

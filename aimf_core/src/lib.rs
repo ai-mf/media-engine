@@ -7,6 +7,21 @@ mod error;
 mod frame;
 mod signature;
 
+#[cfg(debug_assertions)]
+#[macro_export]
+macro_rules! debug_print {
+    ($($arg:tt)*) => {
+        println!($($arg)*);
+    };
+}
+
+#[cfg(not(debug_assertions))]
+#[macro_export]
+macro_rules! debug_print {
+    ($($arg:tt)*) => {};
+}
+
+// Re-export for convenience
 pub use metadata::{AiMetadata, MediaType, PayloadType};
 pub use container::{AiContainer, VerificationResult};
 pub use validation::{validate_image_dimensions,validate_pixel_count,
@@ -21,7 +36,8 @@ MAX_SAMPLE_RATE,MAX_VIDEO_MEMORY,
 pub use error::CoreError;
 pub use hash::compute_hash;
 pub use frame::Frame;
-pub use signature::CryptoSignature;  // Add this
+pub use signature::CryptoSignature;
+
 
 
 

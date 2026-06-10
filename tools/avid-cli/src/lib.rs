@@ -6,7 +6,6 @@
 use media_engine_commands::{
     common::*,
     traits::*,
-    json_input::JsonCreateCommand,
     sign::SignCommand,
 };
 use cli_common::video_context;
@@ -61,9 +60,8 @@ impl AvidConfig {
     /// Verify video file integrity and signature
     pub fn verify(&self, file: &PathBuf) -> Result<VerificationResult> {
         let data = std::fs::read(file)?;
-        let media_bytes = &data; // 👈 THIS LINE
         let container = extract_avid_from_mp4(&data)?;
-        Ok(container.full_verify(media_bytes))
+        Ok(container.full_verify(&data))
     }
 
     /// Sign a video file with a private key
@@ -76,28 +74,6 @@ impl AvidConfig {
             force: false,
         };
         SignCommand::execute(args, &ctx).await
-    }
-
-    /// Create video from JSON data
-    pub async fn create_from_json(
-        &self,
-        _json_data: &[u8],
-        output: &PathBuf,
-        model: &str,
-        version: &str,
-    ) -> Result<()> {
-        let ctx = self.to_context();
-        let args = JsonCreateArgs {
-            common: CreateArgs {
-                output: output.clone(),
-                model: model.to_string(),
-                version: version.to_string(),
-                prompt_hash: None,
-                key: None,
-                input_format: "json".into(),
-            },
-        };
-        JsonCreateCommand::execute(args, &ctx).await
     }
 }
 

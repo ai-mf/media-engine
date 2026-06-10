@@ -115,11 +115,11 @@ impl SigningService {
         };
         
         let container_for_signing = AiContainer {
-            media_type: container.media_type.clone(),
+            version: container.version,
+            media_type: container.media_type,
             encoding: container.encoding.clone(),
-            payload_type: container.payload_type.clone(),
+            payload_type: container.payload_type,
             metadata: signing_metadata,
-            //payload: container.payload.clone(),
             hash: container.hash,
         };
         

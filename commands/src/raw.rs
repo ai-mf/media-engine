@@ -3,8 +3,8 @@ use crate::traits::*;
 use crate::common::*;
 use crate::utils::ProgressTracker;
 use anyhow::{Context, Result};
-use aimf_core::{AiContainer, AiMetadata, MediaType, PayloadType};
-use std::io::Read;
+use aimf_core::{AiContainer, AiMetadata, MediaType, PayloadType, debug_print};
+use std::io::{Read};
 use std::path::PathBuf;
 use async_trait::async_trait;
 
@@ -41,7 +41,7 @@ impl CommandExecutor for RawCreateCommand {
             ctx.format_extension.clone(),
             PayloadType::Encoded,
             metadata,
-            &encoded,//encoded.clone(),
+            &encoded,
         )?;
 
         if let Some(key_path) = &args.common.key {
@@ -85,13 +85,15 @@ fn parse_raw_media(data: &[u8], args: &RawCreateArgs, ctx: &CommandContext) -> R
 
             let duration_secs = samples.len() as f64 / sample_rate as f64;
 
-            Ok(ParsedMedia::Audio(AudioData {
+            // Use disk streaming for large audio
+            Ok(ParsedMedia::Audio(AudioData::from_samples(
                 sample_rate,
                 samples,
                 channels,
                 duration_secs,
-            }))
+            )?))
         }
+        
         MediaType::Image => {
             let width = args.width.context("Width required for raw image input")?;
             let height = args.height.context("Height required for raw image input")?;
@@ -111,33 +113,71 @@ fn parse_raw_media(data: &[u8], args: &RawCreateArgs, ctx: &CommandContext) -> R
                 channels: 3,
             }))
         }
+       
         MediaType::Video => {
-            let width = args.width.context("Width required for raw video input")?;
-            let height = args.height.context("Height required for raw video input")?;
-            let fps = args.fps.context("FPS required for raw video input")?;
+            let width = args.width.context("Width required for raw video")?;
+            let height = args.height.context("Height required for raw video")?;
+            let fps = args.fps.context("FPS required for raw video")?;
             
             let frame_size = (width * height * 3) as usize;
-            if data.len() % frame_size != 0 {
-                anyhow::bail!(
-                    "Data size {} not multiple of frame size {}",
-                    data.len(), frame_size
-                );
-            }
-
-            let frame_count = data.len() / frame_size;
-            let frames: Vec<Vec<u8>> = data
-                .chunks(frame_size)
-                .map(|chunk| chunk.to_vec())
-                .collect();
-
+            
+            // Calculate how much is video vs audio
+            let (video_bytes, audio_bytes) = if let Some(frame_count) = args.frame_count {
+                let expected_video_bytes = frame_count * frame_size;
+                if data.len() < expected_video_bytes {
+                    anyhow::bail!("Not enough data: expected {} video bytes, got {}", expected_video_bytes, data.len());
+                }
+                (expected_video_bytes, &data[expected_video_bytes..])
+            } else {
+                // No frame_count provided, assume all data is video
+                (data.len(), &[][..])
+            };
+            
+            let frame_count = video_bytes / frame_size;
+            
+            debug_print!("📊 Parsing raw video: {} frames ({}x{} @ {}fps)", frame_count, width, height, fps);
+            
+            // Write video frames to disk
+            use tempfile::tempdir;
+            let temp_dir = tempdir()?;
+            let frames_path = temp_dir.path().join("frames.raw");
+            std::fs::write(&frames_path, &data[..video_bytes])?;
+            
+            // Parse audio if present
+            let audio = if !audio_bytes.is_empty() && args.sample_rate > 0 {
+                debug_print!("🔊 Parsing {} bytes of audio data", audio_bytes.len());
+                
+                // Convert raw PCM16 to f32 samples
+                let samples: Vec<f32> = audio_bytes
+                    .chunks_exact(2)
+                    .map(|chunk| {
+                        let sample = i16::from_le_bytes([chunk[0], chunk[1]]);
+                        sample as f32 / i16::MAX as f32
+                    })
+                    .collect();
+                
+                let duration_secs = samples.len() as f64 / args.sample_rate as f64;
+                
+                Some(AudioData::from_samples(
+                    args.sample_rate,
+                    samples,
+                    args.channels,
+                    duration_secs,
+                )?)
+            } else {
+                None
+            };
+            
             let duration_secs = frame_count as f64 / fps as f64;
-
+            
             Ok(ParsedMedia::Video(VideoData {
-                width: width as u32,
-                height: height as u32,
+                width,
+                height,
                 fps,
-                frames,
-                audio: None,
+                frames: vec![],  // Empty - stored on disk
+                frames_temp_path: Some(frames_path),
+                frames_temp_dir: Some(temp_dir),
+                audio,
                 frame_count,
                 duration_secs,
             }))

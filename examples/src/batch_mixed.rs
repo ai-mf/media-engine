@@ -1,18 +1,27 @@
 //! Batch Process Mixed Formats
 //! 
 //! This example processes different media types (audio, image, video)
-//! and converts them to their respective AIMF formats.
+//! and converts them to their respective AIMF formats using RAW binary.
 
 use std::path::PathBuf;
 use std::fs;
 use std::io::Write;
-use serde_json::json;
+use std::process::{Command, Stdio};
 
 #[derive(Debug)]
 struct MediaJob {
     name: String,
     media_type: MediaType,
-    data: serde_json::Value,
+    width: Option<u32>,
+    height: Option<u32>,
+    fps: Option<u32>,
+    sample_rate: Option<u32>,
+    channels: Option<u16>,
+    video_frames: Option<Vec<Vec<u8>>>,
+    image_pixels: Option<Vec<u8>>,
+    audio_samples: Option<Vec<f32>>,
+    model: String,
+    description: String,
 }
 
 #[derive(Debug)]
@@ -25,9 +34,9 @@ enum MediaType {
 impl MediaType {
     fn binary(&self) -> &'static str {
         match self {
-            MediaType::Audio => "aaud",
-            MediaType::Image => "aimg",
-            MediaType::Video => "avid",
+            MediaType::Audio => "aimf",
+            MediaType::Image => "aimf",
+            MediaType::Video => "aimf",
         }
     }
     
@@ -57,45 +66,48 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         MediaJob {
             name: "piano_melody".to_string(),
             media_type: MediaType::Audio,
-            data: json!({
-                "sample_rate": 44100,
-                "channels": 1,
-                "samples": generate_audio_samples(44100, 1.0),
-                "model": "MusicGen",
-                "description": "Piano melody in C major"
-            }),
+            width: None,
+            height: None,
+            fps: None,
+            sample_rate: Some(44100),
+            channels: Some(1),
+            video_frames: None,
+            image_pixels: None,
+            audio_samples: Some(generate_audio_samples(44100, 1.0)),
+            model: "MusicGen".to_string(),
+            description: "Piano melody in C major".to_string(),
         },
         
         // Image job
         MediaJob {
             name: "sunset_scene".to_string(),
             media_type: MediaType::Image,
-            data: json!({
-                "width": 800,
-                "height": 600,
-                "format": "rgb8",
-                "pixels": generate_image_pattern(800, 600),
-                "model": "StableDiffusion",
-                "description": "Sunset over mountains"
-            }),
+            width: Some(800),
+            height: Some(600),
+            fps: None,
+            sample_rate: None,
+            channels: None,
+            video_frames: None,
+            image_pixels: Some(generate_image_pattern(800, 600)),
+            audio_samples: None,
+            model: "StableDiffusion".to_string(),
+            description: "Sunset over mountains".to_string(),
         },
         
         // Video job (simplified)
         MediaJob {
             name: "animated_logo".to_string(),
             media_type: MediaType::Video,
-            data: json!({
-                "width": 640,
-                "height": 480,
-                "fps": 30,
-                "frames": generate_video_frames(30),
-                "audio": {
-                    "sample_rate": 22050,
-                    "samples": generate_audio_samples(22050, 1.0)
-                },
-                "model": "GenVideo",
-                "description": "Animated logo with sound"
-            }),
+            width: Some(64),
+            height: Some(48),
+            fps: Some(30),
+            sample_rate: Some(22050),
+            channels: Some(1),
+            video_frames: Some(generate_video_frames(30, 64, 48)),
+            image_pixels: None,
+            audio_samples: Some(generate_audio_samples(22050, 1.0)),
+            model: "GenVideo".to_string(),
+            description: "Animated logo with sound".to_string(),
         },
     ];
     
@@ -107,25 +119,99 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         println!("🎬 Processing: {} ({:?})", job.name, job.media_type);
         
         let output_path = output_dir.join(format!("{}.{}", job.name, job.media_type.extension()));
-        let json_string = serde_json::to_string(&job.data)?;
         
-        // Process based on media type
-        let mut child = std::process::Command::new("cargo")
-            .args(&[
-                "run", "--bin", job.media_type.binary(), "--", "json",
-                "--output", output_path.to_str().unwrap(),
-                "--model", job.data["model"].as_str().unwrap_or("Unknown"),
-                "--version", "1.0",
-                "--key", key_path.to_str().unwrap()
-            ])
-            .stdin(std::process::Stdio::piped())
-            .spawn()?;
-        
-        let mut stdin = child.stdin.take().unwrap();
-        stdin.write_all(json_string.as_bytes())?;
-        drop(stdin);
-        
-        let status = child.wait()?;
+        // Process based on media type using RAW format
+        let status = match job.media_type {
+            MediaType::Audio => {
+                let audio_bytes = job.audio_samples.as_ref().unwrap();
+                let mut pcm_bytes = Vec::new();
+                for &sample in audio_bytes {
+                    let sample_i16 = (sample * i16::MAX as f32) as i16;
+                    pcm_bytes.extend_from_slice(&sample_i16.to_le_bytes());
+                }
+                
+                let mut child = Command::new("cargo")
+                    .args(&[
+                        "run", "--bin", job.media_type.binary(), "--", "raw",
+                        "--output", output_path.to_str().unwrap(),
+                        "--model", &job.model,
+                        "--version", "1.0",
+                        "--type", "audio",
+                        "--sample-rate", &job.sample_rate.unwrap().to_string(),
+                        "--channels", &job.channels.unwrap().to_string(),
+                        "--key", key_path.to_str().unwrap()
+                    ])
+                    .stdin(Stdio::piped())
+                    .spawn()?;
+                
+                let mut stdin = child.stdin.take().unwrap();
+                stdin.write_all(&pcm_bytes)?;
+                drop(stdin);
+                child.wait()?
+            }
+            MediaType::Image => {
+                let pixels = job.image_pixels.as_ref().unwrap();
+                
+                let mut child = Command::new("cargo")
+                    .args(&[
+                        "run", "--bin", job.media_type.binary(), "--", "raw",
+                        "--output", output_path.to_str().unwrap(),
+                        "--model", &job.model,
+                        "--version", "1.0",
+                        "--type", "image",
+                        "--width", &job.width.unwrap().to_string(),
+                        "--height", &job.height.unwrap().to_string(),
+                        "--format", "rgb8",
+                        "--key", key_path.to_str().unwrap()
+                    ])
+                    .stdin(Stdio::piped())
+                    .spawn()?;
+                
+                let mut stdin = child.stdin.take().unwrap();
+                stdin.write_all(pixels)?;
+                drop(stdin);
+                child.wait()?
+            }
+            MediaType::Video => {
+                let frames = job.video_frames.as_ref().unwrap();
+                let audio_bytes = job.audio_samples.as_ref().unwrap();
+                
+                // Combine video frames
+                let mut combined = Vec::new();
+                for frame in frames {
+                    combined.extend_from_slice(frame);
+                }
+                
+                // Append audio
+                for &sample in audio_bytes {
+                    let sample_i16 = (sample * i16::MAX as f32) as i16;
+                    combined.extend_from_slice(&sample_i16.to_le_bytes());
+                }
+                
+                let mut child = Command::new("cargo")
+                    .args(&[
+                        "run", "--bin", job.media_type.binary(), "--", "raw",
+                        "--output", output_path.to_str().unwrap(),
+                        "--model", &job.model,
+                        "--version", "1.0",
+                        "--type", "video",
+                        "--width", &job.width.unwrap().to_string(),
+                        "--height", &job.height.unwrap().to_string(),
+                        "--fps", &job.fps.unwrap().to_string(),
+                        "--frame-count", &frames.len().to_string(),
+                        "--sample-rate", &job.sample_rate.unwrap().to_string(),
+                        "--channels", &job.channels.unwrap().to_string(),
+                        "--key", key_path.to_str().unwrap()
+                    ])
+                    .stdin(Stdio::piped())
+                    .spawn()?;
+                
+                let mut stdin = child.stdin.take().unwrap();
+                stdin.write_all(&combined)?;
+                drop(stdin);
+                child.wait()?
+            }
+        };
         
         if status.success() {
             println!("   ✅ Created: {}", output_path.display());
@@ -144,7 +230,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             continue;
         }
         
-        // Use universal aimf for verification
         let status = std::process::Command::new("cargo")
             .args(&["run", "--bin", "aimf", "--", "verify", path.to_str().unwrap()])
             .status()?;
@@ -152,14 +237,12 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         if status.success() {
             println!("   ✅ {} - VERIFIED", name);
             
-            // Get info
             let output = std::process::Command::new("cargo")
                 .args(&["run", "--bin", "aimf", "--", "info", path.to_str().unwrap()])
                 .output()?;
             
             if output.status.success() {
                 let info = String::from_utf8_lossy(&output.stdout);
-                // Extract just the model line
                 for line in info.lines() {
                     if line.contains("Model:") {
                         println!("      {}", line.trim());
@@ -191,7 +274,6 @@ fn generate_audio_samples(sample_rate: u32, duration_secs: f64) -> Vec<f32> {
     
     for i in 0..num_samples {
         let t = i as f64 / sample_rate as f64;
-        // Generate a simple sine wave
         let sample = (2.0 * std::f64::consts::PI * 440.0 * t).sin() * 0.5;
         samples.push(sample as f32);
     }
@@ -204,7 +286,6 @@ fn generate_image_pattern(width: u32, height: u32) -> Vec<u8> {
     
     for y in 0..height {
         for x in 0..width {
-            // Create a gradient pattern
             let r = ((x * 255) / width) as u8;
             let g = ((y * 255) / height) as u8;
             let b = (((x + y) * 255) / (width + height)) as u8;
@@ -218,17 +299,14 @@ fn generate_image_pattern(width: u32, height: u32) -> Vec<u8> {
     pixels
 }
 
-fn generate_video_frames(frame_count: u32) -> Vec<Vec<u8>> {
+fn generate_video_frames(frame_count: u32, width: u32, height: u32) -> Vec<Vec<u8>> {
     let mut frames = Vec::with_capacity(frame_count as usize);
     
     for frame_num in 0..frame_count {
-        let width = 64;
-        let height = 48;
         let mut frame_data = Vec::with_capacity((width * height * 3) as usize);
         
         for y in 0..height {
             for x in 0..width {
-                // Moving pattern
                 let r = ((x + frame_num) % 256) as u8;
                 let g = ((y + frame_num * 2) % 256) as u8;
                 let b = (((x + y + frame_num * 3) % 256)) as u8;
@@ -247,7 +325,7 @@ fn generate_video_frames(frame_count: u32) -> Vec<Vec<u8>> {
 
 fn generate_key(path: &PathBuf) -> Result<(), Box<dyn std::error::Error>> {
     let status = std::process::Command::new("cargo")
-        .args(&["run", "--bin", "aaud", "--", "gen-key", "--output", path.to_str().unwrap()])
+        .args(&["run", "--bin", "aimf", "--", "gen-key", "--output", path.to_str().unwrap()])
         .status()?;
     
     if status.success() {

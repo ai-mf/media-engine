@@ -1,3 +1,4 @@
+//media-engine/tools/cli-common/src/lib.rs
 //! Common utilities for CLI tools
 //!
 //! Provides shared functionality for aaud-cli, aimg-cli, avid-cli, and aimf-cli

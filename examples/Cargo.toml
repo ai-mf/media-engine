@@ -55,5 +55,9 @@ path = "src/batch_mixed.rs"
 name = "batch_csv"
 path = "src/batch_csv.rs"
 
+[[example]]
+name = "ai_generate_raw_video"
+path = "src/ai_generate_raw_video.rs"
+
 [dependencies]
 serde_json = { workspace = true }

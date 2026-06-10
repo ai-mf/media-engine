@@ -1,11 +1,17 @@
-"""Universal AIMF wrapper - handles all media types"""
+"""Universal AIMF wrapper - handles all media types using RAW binary"""
 
 import json
 import subprocess
 import tempfile
+import struct
+import os
 from pathlib import Path
 from typing import Optional, Union, Dict, Any, List
 from enum import Enum
+from .binary import ensure_binary
+
+class DeprecationError(Exception):
+    pass
 
 class MediaType(Enum):
     AUDIO = "audio"
@@ -14,60 +20,167 @@ class MediaType(Enum):
     AUTO = "auto"
 
 class AIMF:
-    """
-    Universal AIMF wrapper - auto-detects media type
-    Works with all formats: AAUD (audio), AIMG (image), AVID (video)
-    """
+    """Universal AIMF wrapper - auto-detects media type"""
     
     def __init__(self):
         self.media_type: Optional[MediaType] = None
-        self.data: Dict[str, Any] = {}
-        self.metadata: Dict[str, str] = {}
+        self.model: str = ""
+        self.version: str = ""
         self.key_path: Optional[str] = None
+        self._file_path: Optional[Path] = None  # Store path for verify/info
+        
+        # RAW binary data
+        self.audio_bytes: Optional[bytes] = None
+        self.sample_rate: Optional[int] = None
+        self.channels: int = 1
+        
+        self.image_bytes: Optional[bytes] = None
+        self.width: Optional[int] = None
+        self.height: Optional[int] = None
+        self.pixel_format: str = "rgb8"
+        
+        self.video_bytes: Optional[bytes] = None
+        self.video_width: Optional[int] = None
+        self.video_height: Optional[int] = None
+        self.fps: Optional[int] = None
+        self.frame_count: int = 0
+    
+    # ========== Factory Methods ==========
+    
+    @classmethod
+    def from_audio_samples(cls, samples: List[float], sample_rate: int = 44100, channels: int = 1):
+        """Create from raw audio samples"""
+        obj = cls()
+        obj.media_type = MediaType.AUDIO
+        obj.sample_rate = sample_rate
+        obj.channels = channels
+        
+        audio_bytes = bytearray()
+        for s in samples:
+            s = max(-1.0, min(1.0, s))
+            sample_i16 = int(s * 32767)
+            audio_bytes.extend(struct.pack('<h', sample_i16))
+        obj.audio_bytes = bytes(audio_bytes)
+        return obj
+    
+    @classmethod
+    def from_audio_bytes(cls, audio_bytes: bytes, sample_rate: int = 44100, channels: int = 1):
+        """Create from raw PCM16 bytes"""
+        obj = cls()
+        obj.media_type = MediaType.AUDIO
+        obj.sample_rate = sample_rate
+        obj.channels = channels
+        obj.audio_bytes = audio_bytes
+        return obj
+    
+    @classmethod
+    def from_image_pixels(cls, pixels: List[int], width: int, height: int, pixel_format: str = "rgb8"):
+        """Create from RGB8 pixel data"""
+        obj = cls()
+        obj.media_type = MediaType.IMAGE
+        obj.width = width
+        obj.height = height
+        obj.pixel_format = pixel_format
+        obj.image_bytes = bytes(pixels)
+        return obj
+    
+    @classmethod
+    def from_image_bytes(cls, image_bytes: bytes, width: int, height: int, pixel_format: str = "rgb8"):
+        """Create from raw RGB bytes"""
+        obj = cls()
+        obj.media_type = MediaType.IMAGE
+        obj.width = width
+        obj.height = height
+        obj.pixel_format = pixel_format
+        obj.image_bytes = image_bytes
+        return obj
+    
+    @classmethod
+    def from_video_frames(cls, frames: List[List[int]], width: int, height: int, fps: int = 30):
+        """Create from RGB24 frame data"""
+        obj = cls()
+        obj.media_type = MediaType.VIDEO
+        obj.video_width = width
+        obj.video_height = height
+        obj.fps = fps
+        obj.frame_count = len(frames)
+        
+        video_bytes = bytearray()
+        for frame in frames:
+            video_bytes.extend(bytes(frame))
+        obj.video_bytes = bytes(video_bytes)
+        return obj
+    
+    @classmethod
+    def from_video_bytes(cls, video_bytes: bytes, width: int, height: int, fps: int = 30, frame_count: int = 0):
+        """Create from raw RGB bytes"""
+        obj = cls()
+        obj.media_type = MediaType.VIDEO
+        obj.video_width = width
+        obj.video_height = height
+        obj.fps = fps
+        obj.video_bytes = video_bytes
+        if frame_count == 0:
+            frame_size = width * height * 3
+            obj.frame_count = len(video_bytes) // frame_size
+        else:
+            obj.frame_count = frame_count
+        return obj
     
     @classmethod
     def from_file(cls, path: Union[str, Path]):
-        """Load any AIMF file (auto-detects format)"""
-        aimf = cls()
-        path_str = str(path)
-        # TODO: Implement actual file parsing
-        # For now, just detect type from extension
-        if path_str.endswith('.aaud'):
-            aimf.media_type = MediaType.AUDIO
-        elif path_str.endswith('.aimg'):
-            aimf.media_type = MediaType.IMAGE
-        elif path_str.endswith('.avid'):
-            aimf.media_type = MediaType.VIDEO
+        """Load any AIMF file (auto-detects format using JSON output)"""
+        path = Path(path)
+        obj = cls()
+        obj._file_path = path
         
-        # Load the actual data from file
-        # This would extract and parse the AIMF container
-        aimf.data = {}  # Placeholder
+        # Detect type from extension
+        if path.suffix == '.aaud':
+            obj.media_type = MediaType.AUDIO
+        elif path.suffix == '.aimg':
+            obj.media_type = MediaType.IMAGE
+        elif path.suffix == '.avid':
+            obj.media_type = MediaType.VIDEO
         
-        return aimf
+        # Parse JSON output from aimf info
+        result = subprocess.run(
+            ["aimf", "info", "--json", str(path)],
+            capture_output=True, text=True
+        )
+        
+        if result.returncode == 0:
+            try:
+                data = json.loads(result.stdout)
+                obj.model = data.get("model", "")
+                obj.version = data.get("version", "")
+                
+                # Parse media-specific fields
+                if obj.media_type == MediaType.AUDIO:
+                    obj.sample_rate = data.get("sample_rate")
+                    obj.channels = data.get("channels", 1)
+                elif obj.media_type == MediaType.IMAGE:
+                    obj.width = data.get("width")
+                    obj.height = data.get("height")
+                elif obj.media_type == MediaType.VIDEO:
+                    obj.video_width = data.get("width")
+                    obj.video_height = data.get("height")
+                    obj.fps = data.get("fps")
+            except json.JSONDecodeError:
+                pass
+        
+        return obj
     
     @classmethod
     def from_json(cls, json_data: Dict[str, Any], media_type: Optional[MediaType] = None):
-        """Create from JSON data, optionally specify media type"""
-        aimf = cls()
-        aimf.data = json_data
-        
-        # Auto-detect if not specified
-        if media_type is None:
-            if "samples" in json_data or "sample_rate" in json_data:
-                aimf.media_type = MediaType.AUDIO
-            elif "pixels" in json_data or "width" in json_data:
-                aimf.media_type = MediaType.IMAGE
-            elif "frames" in json_data:
-                aimf.media_type = MediaType.VIDEO
-        else:
-            aimf.media_type = media_type
-        
-        return aimf
+        """DEPRECATED: Use from_audio_samples/from_image_pixels/from_video_frames instead"""
+        raise DeprecationError("from_json is deprecated. Use specific from_* methods with RAW binary")
+    
+    # ========== Chainable Setters ==========
     
     def with_model(self, model: str, version: str = "1.0"):
         """Set AI model metadata"""
-        self.metadata["model"] = model
-        self.metadata["version"] = version
+        self.model = model
+        self.version = version
         return self
     
     def with_key(self, key_path: Union[str, Path]):
@@ -75,139 +188,224 @@ class AIMF:
         self.key_path = str(key_path)
         return self
     
+    def with_audio(self, samples: List[float], sample_rate: int = 44100):
+        """Add audio to video"""
+        self.sample_rate = sample_rate
+        audio_bytes = bytearray()
+        for s in samples:
+            s = max(-1.0, min(1.0, s))
+            sample_i16 = int(s * 32767)
+            audio_bytes.extend(struct.pack('<h', sample_i16))
+        self.audio_bytes = bytes(audio_bytes)
+        return self
+    
+    # ========== Save Method ==========
+    
     def save(self, output_path: Union[str, Path]):
-        """Save as AIMF file (extension determines format)"""
+        """Save as AIMF file using RAW binary format"""
         output_path = Path(output_path)
         
-        with tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False) as f:
-            json.dump(self.data, f)
-            f.flush()
+        if not self.model or not self.version:
+            raise ValueError("Missing model name or version. Call with_model() first")
+        
+        # Build command based on media type
+        if self.media_type == MediaType.AUDIO:
+            if self.audio_bytes is None:
+                raise ValueError("No audio data to save")
+            if self.sample_rate is None:
+                raise ValueError("Missing sample_rate")
+            
+            cmd = [
+                "aimf", "raw",
+                "--output", str(output_path),
+                "--model", self.model,
+                "--version", self.version,
+                "--type", "audio",
+                "--sample-rate", str(self.sample_rate),
+                "--channels", str(self.channels)
+            ]
+            data = self.audio_bytes
+            
+        elif self.media_type == MediaType.IMAGE:
+            if self.image_bytes is None:
+                raise ValueError("No image data to save")
+            if self.width is None or self.height is None:
+                raise ValueError("Missing width/height")
+            
+            cmd = [
+                "aimf", "raw",
+                "--output", str(output_path),
+                "--model", self.model,
+                "--version", self.version,
+                "--type", "image",
+                "--width", str(self.width),
+                "--height", str(self.height),
+                "--format", self.pixel_format
+            ]
+            data = self.image_bytes
+            
+        elif self.media_type == MediaType.VIDEO:
+            if self.video_bytes is None:
+                raise ValueError("No video data to save")
+            if self.video_width is None or self.video_height is None or self.fps is None:
+                raise ValueError("Missing video metadata (width, height, fps)")
+            
+            combined = bytearray(self.video_bytes)
+            if self.audio_bytes:
+                combined.extend(self.audio_bytes)
+            data = bytes(combined)
+            
+            cmd = [
+                "aimf", "raw",
+                "--output", str(output_path),
+                "--model", self.model,
+                "--version", self.version,
+                "--type", "video",
+                "--width", str(self.video_width),
+                "--height", str(self.video_height),
+                "--fps", str(self.fps),
+                "--frame-count", str(self.frame_count)
+            ]
+            
+            if self.audio_bytes:
+                cmd.extend([
+                    "--sample-rate", str(self.sample_rate or 44100),
+                    "--channels", str(self.channels)
+                ])
+        else:
+            raise ValueError("Unknown media type")
+        
+        if self.key_path:
+            cmd.extend(["--key", self.key_path])
+        
+        # Write to temp file and pipe to command
+        with tempfile.NamedTemporaryFile(mode='wb', delete=False) as f:
+            f.write(data)
             temp_path = f.name
         
         try:
-            # Build universal aimf command
-            cmd = ["aimf", "json", "--output", str(output_path)]
-            
-            if self.metadata.get("model"):
-                cmd.extend(["--model", self.metadata["model"]])
-            if self.metadata.get("version"):
-                cmd.extend(["--version", self.metadata["version"]])
-            if self.key_path:
-                cmd.extend(["--key", self.key_path])
-            if self.media_type and self.media_type != MediaType.AUTO:
-                cmd.extend(["--type", self.media_type.value])
-            
-            # Run command with stdin from temp file
-            with open(temp_path, 'r') as json_file:
-                result = subprocess.run(
-                    cmd, 
-                    stdin=json_file, 
-                    capture_output=True,
-                    text=True
-                )
+            with open(temp_path, 'rb') as f:
+                result = subprocess.run(cmd, stdin=f, capture_output=True, text=True)
             
             if result.returncode != 0:
                 raise RuntimeError(f"AIMF failed: {result.stderr}")
-        
         finally:
-            # Clean up temp file
-            Path(temp_path).unlink(missing_ok=True)
+            os.unlink(temp_path)
         
         return output_path
     
-    @staticmethod
-    def info(file_path: Union[str, Path]) -> Dict[str, Any]:
-        """Get metadata from any AIMF file"""
-        file_path = Path(file_path)
-        cmd = ["aimf", "info", str(file_path)]
-        
-        result = subprocess.run(
-            cmd, 
-            capture_output=True, 
-            text=True
-        )
-        
-        return {
-            "raw_output": result.stdout,
-            "success": result.returncode == 0,
-            "error": result.stderr if result.returncode != 0 else None
-        }
+    # ========== Verification & Info Methods ==========
+    
+    def verify(self) -> Dict[str, Any]:
+        """Verify this file (if loaded via from_file)"""
+        if not self._file_path:
+            raise ValueError("No file loaded. Use from_file() first.")
+        return self.__class__.verify_file(self._file_path)
+    
+    def verify_simple(self) -> bool:
+        """Quick verification - returns True/False"""
+        if not self._file_path:
+            raise ValueError("No file loaded. Use from_file() first.")
+        return self.__class__.verify_simple_file(self._file_path)
+    
+    def info(self) -> Dict[str, Any]:
+        """Get metadata for this file"""
+        if not self._file_path:
+            raise ValueError("No file loaded. Use from_file() first.")
+        return self.__class__.info_file(self._file_path)
+    
+    # ========== Static Methods ==========
     
     @staticmethod
-    def verify(file_path: Union[str, Path]) -> Dict[str, Any]:
-        """Verify any AIMF file"""
-        file_path = Path(file_path)
-        cmd = ["aimf", "verify", str(file_path)]
+    def info_file(file_path: Union[str, Path]) -> Dict[str, Any]:
+        """Get metadata from any AIMF file (parses JSON output)"""
+        ensure_binary()  # Make sure binary exists
+        cmd = ["aimf", "info", "--json", str(file_path)]
+        result = subprocess.run(cmd, capture_output=True, text=True)
         
-        result = subprocess.run(
-            cmd, 
-            capture_output=True, 
-            text=True
-        )
+        if result.returncode != 0:
+            return {
+                "success": False,
+                "error": result.stderr,
+                "raw_output": result.stdout
+            }
         
-        return {
-            "valid": result.returncode == 0,
-            "output": result.stdout,
-            "error": result.stderr if result.returncode != 0 else None
-        }
+        try:
+            data = json.loads(result.stdout)
+            data["success"] = True
+            return data
+        except json.JSONDecodeError:
+            return {
+                "success": True,
+                "raw_output": result.stdout,
+                "error": None
+            }
+    
+    @staticmethod
+    def verify_file(file_path: Union[str, Path]) -> Dict[str, Any]:
+        """Verify any AIMF file (parses JSON output)"""
+        cmd = ["aimf", "verify", "--json", str(file_path)]
+        result = subprocess.run(cmd, capture_output=True, text=True)
+        
+        if result.returncode != 0:
+            return {
+                "verified": False,
+                "success": False,
+                "error": result.stderr,
+                "raw_output": result.stdout
+            }
+        
+        try:
+            data = json.loads(result.stdout)
+            data["success"] = True
+            return data
+        except json.JSONDecodeError:
+            return {
+                "verified": result.returncode == 0,
+                "success": True,
+                "raw_output": result.stdout,
+                "error": None
+            }
+    
+    @staticmethod
+    def verify_simple_file(file_path: Union[str, Path]) -> bool:
+        """Quick verification - returns just PASSED/FAILED"""
+        cmd = ["aimf", "verify", "--simple", str(file_path)]
+        result = subprocess.run(cmd, capture_output=True, text=True)
+        return result.returncode == 0 and "PASSED" in result.stdout
     
     @staticmethod
     def extract(file_path: Union[str, Path], output_path: Union[str, Path]):
         """Extract original media from any AIMF file"""
-        file_path = Path(file_path)
-        output_path = Path(output_path)
         cmd = ["aimf", "extract", str(file_path), "--output", str(output_path)]
-        
         result = subprocess.run(cmd, capture_output=True, text=True)
         
         if result.returncode != 0:
             raise RuntimeError(f"Extraction failed: {result.stderr}")
-        
         return output_path
     
     @staticmethod
     def view(file_path: Union[str, Path]):
         """View any AIMF file with default player"""
-        file_path = Path(file_path)
-        cmd = ["aimf", "view", str(file_path)]
-        subprocess.run(cmd)
+        subprocess.run(["aimf", "view", str(file_path)])
     
     @staticmethod
     def sign(input_path: Union[str, Path], key_path: Union[str, Path], output_path: Union[str, Path]):
         """Sign an existing AIMF file"""
-        input_path = Path(input_path)
-        output_path = Path(output_path)
         cmd = ["aimf", "sign", "--input", str(input_path), 
                "--key", str(key_path), "--output", str(output_path)]
-        
         result = subprocess.run(cmd, capture_output=True, text=True)
         
         if result.returncode != 0:
             raise RuntimeError(f"Signing failed: {result.stderr}")
-        
         return output_path
-    
-    @staticmethod
-    def batch(input_pattern: str, output_dir: Union[str, Path], **kwargs):
-        """Batch process multiple files"""
-        output_dir = Path(output_dir)
-        cmd = ["aimf", "batch", "--input", input_pattern, "--output-dir", str(output_dir)]
-        
-        for key, value in kwargs.items():
-            cmd.extend([f"--{key}", str(value)])
-        
-        result = subprocess.run(cmd, capture_output=True, text=True)
-        return result.returncode == 0
     
     @staticmethod
     def generate_key(output_path: Union[str, Path]):
         """Generate Ed25519 key pair"""
-        output_path = Path(output_path)
         cmd = ["aimf", "gen-key", "--output", str(output_path)]
-        
         result = subprocess.run(cmd, capture_output=True, text=True)
         
         if result.returncode != 0:
             raise RuntimeError(f"Key generation failed: {result.stderr}")
-        
         return output_path

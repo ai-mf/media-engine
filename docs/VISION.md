@@ -16,14 +16,15 @@ In 2024, AI generated:
 - Who generated it? (for accountability)
 
 ### Current Solutions are Broken
+Got it — concise, table-ready sentence. Here's your addition:
 
 | Approach | Problem |
 |----------|---------|
 | **EXIF metadata** | Stripped by social media, max 64KB, no signatures |
 | **Watermarking** | Removable, detectable, breaks quality |
-| **Separate JSON sidecar** | Gets lost, not attached to file |
 | **C2PA** | Complex, requires certificates, breaks compatibility |
 | **Blockchain** | Expensive, slow, requires network |
+| **SynthID** | Survives screenshots, but limited to specific models/formats |
 
 ### The "Playability Gap"
 
@@ -79,7 +80,7 @@ text
 aimg create output.png --model "StableDiffusion-v1.5" --version "2024-01-15"
 
 # Later: Verify exact model
-aimf info output.aimg | grep "Model"
+aimf info output.aimg --simple| grep "Model"
 # Output: StableDiffusion-v1.5 (2024-01-15)
 
 Benefits:
@@ -119,7 +120,7 @@ AIMF Solution:
 bash
 
 # Verify a file before publishing
-aimf verify incoming.avid
+aimf verify incoming.avid --simple
 
 # Output:
 # ✅ Hash valid
@@ -164,7 +165,7 @@ AIMF Solution:
 bash
 
 # Legal evidence pipeline
-aimf verify evidence.avid --require-signature
+aimf verify evidence.avid --simple
 
 # Tamper-proof chain of custody
 aimf info evidence.avid --json > metadata.json
@@ -185,7 +186,7 @@ AIMF Solution:
 bash
 
 # User downloads an AIMF file
-aimf info suspicious.aimg
+aimf info suspicious.aimg --simple
 
 # Shows:
 # 🤖 AI GENERATED
@@ -359,7 +360,8 @@ For Users
 bash
 
 # Verify any AIMF file
-aimf verify suspicious.file
+aimf verify suspicious.file --simple
+aimf verify suspicious.file --json
 
 Join the Mission
 

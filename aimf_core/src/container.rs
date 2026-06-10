@@ -1,12 +1,13 @@
 // media_engine_core/src/container.rs
 use serde::{Serialize, Deserialize};
-use crate::metadata::{MediaType, PayloadType, AiMetadata};
-use crate::hash::compute_hash;
+use super::{MediaType, PayloadType, AiMetadata, debug_print};
+use crate::hash::compute_hash_with_debug;
 use crate::error::CoreError;
 use crate::signature::CryptoSignature;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AiContainer {
+    pub version: u16,
     pub media_type: MediaType,
     pub encoding: String,
     pub payload_type: PayloadType,
@@ -22,9 +23,10 @@ impl AiContainer {
         metadata: AiMetadata,
         media_bytes: &[u8],
     ) -> Result<Self, CoreError> {
-        let hash = compute_hash(media_bytes, &metadata, encoding.as_str());
-
+        let hash = compute_hash_with_debug(media_bytes, &metadata, encoding.as_str());
+        let version = 1;
         Ok(Self {
+            version,
             media_type,
             encoding,
             payload_type,
@@ -42,9 +44,10 @@ impl AiContainer {
         };
         
         let container_for_signing = AiContainer {
-            media_type: self.media_type.clone(),
+            version: self.version,
+            media_type: self.media_type,
             encoding: self.encoding.clone(),
-            payload_type: self.payload_type.clone(),
+            payload_type: self.payload_type,
             metadata: signing_metadata,
             hash: self.hash,
         };
@@ -95,7 +98,7 @@ impl AiContainer {
         }
     }
     pub fn verify(&self, media_bytes: &[u8]) -> bool {
-        let computed_hash = compute_hash(media_bytes, &self.metadata, &self.encoding);
+        let computed_hash = compute_hash_with_debug(media_bytes, &self.metadata, &self.encoding);
         self.hash == computed_hash
     }
     
@@ -103,31 +106,33 @@ impl AiContainer {
     pub fn serialize(&self) -> Result<Vec<u8>, CoreError> {
         // Binary format: [HEADER_SIZE: u32][HEADER_JSON][RAW_PAYLOAD]
         let header = Header {
-            media_type: self.media_type.clone(),
+            version: self.version,
+            media_type: self.media_type,
             encoding: self.encoding.clone(),
-            payload_type: self.payload_type.clone(),
+            payload_type: self.payload_type,
             metadata: self.metadata.clone(),
             hash: self.hash,
         };
         
-        let header_json = serde_cbor::to_vec(&header)
+
+        let mut header_bytes = Vec::new();
+            ciborium::into_writer(&header, &mut header_bytes)
             .map_err(|e| CoreError::SerializationError(e.to_string()))?;
-        
-        let header_bytes = header_json;
+
         let header_size = header_bytes.len() as u32;
         
-        let total_size = 4 + header_size as usize /*+ self.payload.len()*/;
+        let total_size = 4 + header_size as usize;
         let mut result = Vec::with_capacity(total_size);
         
-        // Write header size (4 bytes, little endian)
-        result.extend_from_slice(&header_size.to_le_bytes());
+        // Write header size (4 bytes, big endian)
+        result.extend_from_slice(&header_size.to_be_bytes());
         
         // Write header JSON
         result.extend_from_slice(&header_bytes);
         
-        println!("DEBUG serialize: header_size={}, payload_size=__, total={}", 
-                 header_size/*, self.payload.len()*/, result.len());
-        println!("DEBUG first 20 bytes: {:02x?}", &result[0..20.min(result.len())]);
+        debug_print!("DEBUG serialize: header_size={}, total={}", 
+                 header_size, result.len());
+        debug_print!("DEBUG first 20 bytes: {:02x?}", &result[0..20.min(result.len())]);
         
         Ok(result)
     }
@@ -137,17 +142,16 @@ impl AiContainer {
             return Err(CoreError::DeserializationError("Data too short".to_string()));
         }
         
-        let header_size = u32::from_le_bytes([data[0], data[1], data[2], data[3]]) as usize;
-        
+        let header_size = u32::from_be_bytes([data[0], data[1], data[2], data[3]]) as usize;
         if data.len() < 4 + header_size {
             return Err(CoreError::DeserializationError("Incomplete header".to_string()));
         }
 
-        let header: Header = serde_cbor::from_slice(&data[4..4+header_size])
+        let header: Header = ciborium::from_reader(&data[4..4+header_size])
             .map_err(|e| CoreError::DeserializationError(e.to_string()))?;
-    
         
         Ok(AiContainer {
+            version: header.version,
             media_type: header.media_type,
             encoding: header.encoding,
             payload_type: header.payload_type,
@@ -159,6 +163,7 @@ impl AiContainer {
 
 #[derive(Serialize, Deserialize)]
 struct Header {
+    version: u16,
     media_type: MediaType,
     encoding: String,
     payload_type: PayloadType,

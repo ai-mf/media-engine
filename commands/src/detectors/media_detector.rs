@@ -13,23 +13,6 @@ impl MediaDetector for DefaultMediaDetector {
             return InputFormat::Encoded;
         }
 
-        // Try to parse as JSON
-        if let Ok(text) = std::str::from_utf8(data) {
-            let trimmed = text.trim_start();
-            if trimmed.starts_with('{') {
-                // Detect media type from JSON content
-                if trimmed.contains("\"samples\"") {
-                    return InputFormat::Json;
-                }
-                if trimmed.contains("\"pixels\"") {
-                    return InputFormat::Json;
-                }
-                if trimmed.contains("\"frames\"") {
-                    return InputFormat::Json;
-                }
-            }
-        }
-
         // Check for raw format
         match media_type {
             MediaType::Audio if data.len() >= 2 && data.len() % 2 == 0 => InputFormat::Raw,
@@ -66,7 +49,6 @@ impl DefaultMediaDetector {
     }
 }
 
-// In commands/src/detectors.rs or wherever DefaultMediaDetector is defined
 impl Default for DefaultMediaDetector {
     fn default() -> Self {
         Self // or just Self
@@ -83,13 +65,6 @@ impl AudioDetector {
         // Check for WAV first
         if detector.is_wav(data) {
             return InputFormat::Encoded;
-        }
-
-        // Check for JSON audio
-        if let Ok(text) = std::str::from_utf8(data) {
-            if text.contains("\"samples\"") && text.contains("\"sample_rate\"") {
-                return InputFormat::Json;
-            }
         }
 
         // Check for raw PCM
@@ -113,13 +88,6 @@ impl ImageDetector {
             return InputFormat::Encoded;
         }
 
-        // Check for JSON image
-        if let Ok(text) = std::str::from_utf8(data) {
-            if text.contains("\"pixels\"") && text.contains("\"width\"") {
-                return InputFormat::Json;
-            }
-        }
-
         // Check for raw RGB
         if data.len() >= 3 && data.len() % 3 == 0 {
             return InputFormat::Raw;
@@ -139,13 +107,6 @@ impl VideoDetector {
         // Check for MP4 first
         if detector.is_mp4(data) {
             return InputFormat::Encoded;
-        }
-
-        // Check for JSON video
-        if let Ok(text) = std::str::from_utf8(data) {
-            if text.contains("\"frames\"") && text.contains("\"fps\"") {
-                return InputFormat::Json;
-            }
         }
 
         // Raw video is typically large

@@ -4,89 +4,15 @@ use anyhow::{Context, Result};
 use image::{ImageBuffer, Rgb, Rgba};
 
 pub struct ImageParser;
-
+#[allow(dead_code)]
+const MAX_SANE_IMAGE_MB: usize = 100; // 100MB max for image
 impl ImageParser {
     pub fn parse_image(data: &[u8], format: InputFormat, rules: &ValidationRules) -> Result<ParsedMedia> {
         match format {
-            InputFormat::Json => Self::parse_json_image(data, rules),
             InputFormat::Raw => Self::parse_raw_image(data, rules),
             InputFormat::Encoded => Self::decode_from_png(data).map(|i| ParsedMedia::Image(i)),
             _ => anyhow::bail!("Unsupported image input format: {:?}", format),
         }
-    }
-
-    fn parse_json_image(data: &[u8], rules: &ValidationRules) -> Result<ParsedMedia> {
-        let v: serde_json::Value = serde_json::from_slice(data)?;
-
-        // Parse dimensions
-        let width = v.get("width")
-            .and_then(|v| v.as_u64())
-            .context("Missing or invalid 'width'")? as u32;
-
-        let height = v.get("height")
-            .and_then(|v| v.as_u64())
-            .context("Missing or invalid 'height'")? as u32;
-
-        // Validate dimensions
-        if width == 0 || height == 0 {
-            anyhow::bail!("Image dimensions cannot be zero");
-        }
-        if width > rules.max_dimension || height > rules.max_dimension {
-            anyhow::bail!(
-                "Image too large: {}x{} (max: {}x{})",
-                width, height, rules.max_dimension, rules.max_dimension
-            );
-        }
-
-        // Parse channels (optional, default to 3 for RGB)
-        let channels = v.get("channels")
-            .and_then(|v| v.as_u64())
-            .unwrap_or(3) as u8;
-
-        if channels != 3 && channels != 4 {
-            anyhow::bail!("Unsupported channel count: {} (must be 3 or 4)", channels);
-        }
-
-        // Parse pixels array
-        let pixels_array = v.get("pixels")
-            .and_then(|v| v.as_array())
-            .context("Missing or invalid 'pixels' array")?;
-
-        let expected_size = (width * height * channels as u32) as usize;
-        if pixels_array.len() != expected_size {
-            anyhow::bail!(
-                "Pixel count mismatch: expected {} ({}x{}x{}), got {}",
-                expected_size, width, height, channels, pixels_array.len()
-            );
-        }
-
-        // Check memory limit
-        if expected_size > rules.max_memory_bytes {
-            anyhow::bail!(
-                "Image too large: {} bytes (max: {})",
-                expected_size, rules.max_memory_bytes
-            );
-        }
-
-        // Parse pixel values
-        let mut pixels = Vec::with_capacity(expected_size);
-        for (i, val) in pixels_array.iter().enumerate() {
-            let pixel = val.as_u64()
-                .context(format!("Pixel {} is not a number", i))? as u8;
-            #[allow(unused_comparisons)]
-            if pixel > 255 {
-                anyhow::bail!("Pixel {} out of range: {} (must be 0-255)", i, pixel);
-            }
-
-            pixels.push(pixel);
-        }
-
-        Ok(ParsedMedia::Image(ImageData {
-            width,
-            height,
-            pixels,
-            channels,
-        }))
     }
 
     fn parse_raw_image(data: &[u8], rules: &ValidationRules) -> Result<ParsedMedia> {

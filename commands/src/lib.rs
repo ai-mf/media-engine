@@ -3,7 +3,6 @@ pub mod traits;
 pub mod common;
 pub mod create;
 pub mod raw;
-pub mod json_input;
 pub mod info;
 pub mod verify;
 pub mod extract;
@@ -20,7 +19,6 @@ pub use traits::*;
 pub use common::*;
 pub use create::CreateCommand;
 pub use raw::RawCreateCommand;
-pub use json_input::JsonCreateCommand;
 pub use info::InfoCommand;
 pub use verify::VerifyCommand;
 pub use extract::ExtractCommand;
@@ -124,28 +122,6 @@ mod tests {
         assert_eq!(args.args.version, "1.0");
         assert!(args.args.prompt_hash.is_none());
         assert_eq!(args.args.input_format, "auto");
-    }
-
-    #[test]
-    fn test_info_args() {
-        use clap::Parser;
-        
-        #[derive(Parser, Debug)]
-        struct TestArgs {
-            #[command(flatten)]
-            args: common::InfoArgs,
-        }
-        
-        let args = TestArgs::try_parse_from(&[
-            "test",
-            "file.png",
-            "--detailed",
-            "--output-format", "json",
-        ]).unwrap();
-        
-        assert_eq!(args.args.file.to_str().unwrap(), "file.png");
-        assert!(args.args.detailed);
-        assert_eq!(args.args.output_format, "json");
     }
 
     #[test]

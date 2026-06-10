@@ -3,7 +3,7 @@
 **Version:** 1.0  
 **Extension:** `.aimg`  
 **Container:** PNG (Portable Network Graphics)  
-**MIME Type:** `image/aimg` (proposed)  
+**MIME Type:** `image/prs.aimg` (proposed)  
 **Status:** ✅ Stable
 
 ## Overview
@@ -14,57 +14,69 @@ AIMG (AI Media Image) embeds AI provenance metadata into standard PNG files whil
 
 - ✅ Universal support (every browser, every OS)
 - ✅ Lossless compression
-- ✅ Supports tEXt chunks for arbitrary metadata
+- ✅ Unknown chunks are ignored by viewers
 - ✅ Alpha channel support
 - ✅ Progressive rendering
 
 ## Format Structure
 
 A PNG file consists of a signature followed by chunks:
-PNG Signature (8 bytes): 137 80 78 71 13 10 26 10
+
+```
+PNG Signature (8 bytes): 89 50 4E 47 0D 0A 1A 0A
 
 Chunks (repeated):
 ┌──────────────┬──────────────┬──────────────────┬──────────────┐
-│ Length (4) │ Type (4) │ Data (Length) │ CRC (4) │
+│ Length (4)   │ Type (4)     │ Data (Length)    │ CRC (4)      │
 └──────────────┴──────────────┴──────────────────┴──────────────┘
-text
+```
 
+### AIMG Chunk (Actual Implementation)
 
-### AIMG Chunk Insertion
+**Unlike the specification's tEXt chunk approach, AIMG uses a custom chunk type `aiMg` (lowercase 'a' to avoid conflicts with registered chunk types):**
 
-AIMG adds a **tEXt chunk** with keyword `"AIMG"`:
+```
+AIMG Chunk Structure:
+┌──────────────┬──────────────┬──────────────────────────┬──────────────┐
+│ Length (4)   │ 'aiMg' (4)   │ CBOR-serialized AiContainer │ CRC (4)     │
+└──────────────┴──────────────┴──────────────────────────┴──────────────┘
+```
 
-Chunk Length: variable
-Chunk Type: tEXt (0x74455874)
-Chunk Data:
-Keyword: "AIMG" + NULL (0x00)
-Text: base64(cbor(AiContainer))
-CRC: CRC32 of Type + Data
-text
+**Chunk Type:** `0x61 0x69 0x4D 0x67` (ASCII: `aiMg`)
 
+**Why `aiMg` instead of `AIMG`?**
+- Registered PNG chunks are case-sensitive
+- Lowercase first letter indicates "ancillary" (safe to ignore)
+- Prevents conflicts with future official chunk types
 
-### Chunk Location
+### Chunk Location (Actual Implementation)
 
-The AIMG tEXt chunk SHOULD be placed **after IHDR** and **before IDAT** chunks:
+The AIMG chunk is placed **immediately before the IEND chunk** (not after IHDR):
 
-PNG Signature
-├── IHDR (image header)
-├── tEXt "AIMG" ← NEW
-├── tEXt "Software" (optional, existing)
-├── tEXt "Description" (optional, existing)
-├── IDAT (image data)
-│ ├── IDAT chunk 1
-│ ├── IDAT chunk 2
-│ └── ...
-└── IEND (end marker)
-text
+```
+PNG File Structure:
+┌──────────────────────────────────────┐
+│ PNG Signature (8 bytes)              │
+├──────────────────────────────────────┤
+│ IHDR chunk (image header)            │
+├──────────────────────────────────────┤
+│ PLTE chunk (palette, optional)       │
+├──────────────────────────────────────┤
+│ IDAT chunk(s) (image data)           │
+├──────────────────────────────────────┤
+│ ... other chunks                     │
+├──────────────────────────────────────┤
+│ aiMg chunk ← NEW (CBOR AiContainer)  │
+├──────────────────────────────────────┤
+│ IEND chunk (end marker)              │
+└──────────────────────────────────────┘
+```
 
-
-### Why Before IDAT?
-
-- Allows streaming decoders to read metadata without loading image data
-- Enables quick verification without decoding pixels
-- Preserves compatibility (unknown chunks are ignored)
+**Why before IEND?**
+- Simpler implementation (just insert before the end marker)
+- Preserves existing chunk ordering
+- Players ignore unknown chunks regardless of position
+- IEND marks the end — anything before it is safe
 
 ## Magic Bytes Detection
 
@@ -76,40 +88,42 @@ text
 
 ### AIMG Marker
 
-The AIMG marker appears in the tEXt chunk at variable offset:
+The AIMG marker appears as a custom chunk type `aiMg`:
 
-tEXt chunk found → keyword == "AIMG" → this is an AIMG file
-text
+```
+Found chunk with type 'aiMg' → this is an AIMG file
+```
 
+**Detection code (from actual implementation):**
 
-**Detection code:**
-
-```python
-def is_aimg(data):
-    # Check PNG signature
-    if not data.startswith(b'\x89PNG\r\n\x1a\n'):
-        return False
+```rust
+fn extract_aimg_from_png(png_data: &[u8]) -> Result<AiContainer, ImageCodecError> {
+    let mut pos = 8;  // After PNG signature
     
-    # Parse chunks
-    pos = 8  # After signature
-    while pos < len(data):
-        length = int.from_bytes(data[pos:pos+4], 'big')
-        chunk_type = data[pos+4:pos+8]
+    while pos + 12 <= png_data.len() {
+        let chunk_len = u32::from_be_bytes(png_data[pos..pos+4].try_into().unwrap()) as usize;
+        let chunk_type = &png_data[pos+4..pos+8];
         
-        if chunk_type == b'tEXt':
-            keyword_end = data[pos+8:pos+8+length].find(b'\x00')
-            keyword = data[pos+8:pos+8+keyword_end]
-            if keyword == b'AIMG':
-                return True
+        if chunk_type == b"aiMg" {
+            let data_start = pos + 8;
+            let data_end = data_start + chunk_len;
+            let container_bytes = &png_data[data_start..data_end];
+            return Ok(AiContainer::deserialize(container_bytes)?);
+        }
         
-        pos += 12 + length  # length(4)+type(4)+crc(4)+data
+        pos += 8 + chunk_len + 4;  // Skip to next chunk
+        if chunk_type == b"IEND" { break; }
+    }
     
-    return False
+    Err(ImageCodecError::NoAimgChunk)
+}
+```
 
-Serialization Format
-Step 1: Create AiContainer
-rust
+## Serialization Format
 
+### Step 1: Create AiContainer
+
+```rust
 let container = AiContainer {
     media_type: MediaType::Image,  // 0
     encoding: "png".to_string(),
@@ -117,152 +131,212 @@ let container = AiContainer {
     metadata: AiMetadata {
         model_name: "StableDiffusion".to_string(),
         model_version: "1.5".to_string(),
+        width: Some(512),
+        height: Some(512),
         timestamp: 1705315200,
         // ... other fields
     },
     payload: original_png_data,  // Original PNG bytes
     hash: compute_hash(),
 };
+```
 
-Step 2: Serialize to CBOR
-rust
+### Step 2: Serialize to CBOR
 
+```rust
 let cbor_bytes = cbor::to_vec(&container);
 // Size: typically 200-500 bytes + metadata
+```
 
-Step 3: Base64 Encode (for PNG tEXt chunk)
+### Step 3: Create `aiMg` chunk
 
-PNG tEXt chunks require Latin-1 (ISO-8859-1) text. CBOR bytes must be base64-encoded:
-rust
+**No base64 encoding!** CBOR bytes are stored raw:
 
-let base64_text = base64::encode(&cbor_bytes);
-// Base64 increases size by ~33%
+```rust
+fn build_aimf_chunk(data: &[u8]) -> Vec<u8> {
+    let mut chunk = Vec::new();
+    chunk.extend_from_slice(&(data.len() as u32).to_be_bytes());
+    chunk.extend_from_slice(b"aiMg");
+    chunk.extend_from_slice(data);
+    
+    // CRC32 of chunk type + data
+    let mut crc_data = Vec::new();
+    crc_data.extend_from_slice(b"aiMg");
+    crc_data.extend_from_slice(data);
+    chunk.extend_from_slice(&crc32fast::hash(&crc_data).to_le_bytes());
+    
+    chunk
+}
+```
 
-Step 4: Create tEXt chunk
-text
+### Step 4: Insert into PNG
 
-Keyword: "AIMG\0"
-Text:    base64(cbor(AiContainer))
-Length:  4 + len(base64_text) + 1 (null terminator)
+The chunk is inserted before IEND:
 
-Step 5: Insert into PNG
+```rust
+fn embed_fresh(png_data: &[u8], container: &AiContainer) -> Result<Vec<u8>, ImageCodecError> {
+    let container_bytes = container.serialize()?;
+    let iend_pos = find_iend_chunk(png_data)?;
+    let new_chunk = build_aimf_chunk(&container_bytes);
+    
+    let mut result = Vec::with_capacity(png_data.len() + new_chunk.len());
+    result.extend_from_slice(&png_data[..iend_pos]);
+    result.extend_from_slice(&new_chunk);
+    result.extend_from_slice(&png_data[iend_pos..]);
+    
+    Ok(result)
+}
+```
 
-The tEXt chunk is inserted between IHDR and IDAT.
-Extraction Process
+## Extraction Process
 
-    Parse PNG chunks
+1. Parse PNG chunks sequentially
+2. Find chunk with type `aiMg`
+3. Read CBOR bytes directly (no decoding)
+4. CBOR deserialize to AiContainer
+5. Verify hash (optional)
+6. Verify signature (optional)
 
-    Find tEXt chunk with keyword "AIMG"
+## Compatibility Matrix
 
-    Base64 decode the text field
+| Software | Can open? | Shows image? | Shows metadata? |
+|----------|-----------|--------------|-----------------|
+| Web Browser | ✅ | ✅ | ❌ |
+| Photoshop | ✅ | ✅ | ❌ |
+| GIMP | ✅ | ✅ | ❌ |
+| ImageMagick | ✅ | ✅ | ❌ |
+| Windows Photos | ✅ | ✅ | ❌ |
+| macOS Preview | ✅ | ✅ | ❌ |
+| VLC | ✅ | ✅ | ❌ |
+| AIMF tools | ✅ | ✅ | ✅ |
 
-    CBOR deserialize to AiContainer
+## Security Considerations
 
-    Verify hash (optional)
+### Malformed Chunks
 
-    Verify signature (optional)
+Always validate chunk boundaries:
 
-Compatibility Matrix
-Software	Can open?	Shows image?	Shows metadata?
-Web Browser	✅	✅	❌
-Photoshop	✅	✅	❌
-GIMP	✅	✅	❌ (ignores tEXt)
-ImageMagick	✅	✅	❌
-Windows Photos	✅	✅	❌
-macOS Preview	✅	✅	❌
-VLC	✅	✅	❌
-AIMF tools	✅	✅	✅
-Security Considerations
-Injection Attacks
-
-Malicious PNGs could craft tEXt chunks that look like AIMG but contain arbitrary data. Always validate:
-rust
-
-// DO: Validate size and format
-if text.len() > MAX_AIMG_SIZE {
-    return Err("AIMG metadata too large");
+```rust
+// DO: Validate chunk size
+if chunk_len > MAX_CHUNK_SIZE {
+    return Err("Chunk too large");
 }
 
-// DO: Validate CBOR structure
-let container: AiContainer = cbor::from_slice(&decoded)?;
+// DO: Check bounds before reading
+if pos + 8 + chunk_len + 4 > png_data.len() {
+    break;
+}
+```
 
-// DON'T: Assume data is safe
-let container: AiContainer = unsafe { cbor::from_slice_unchecked(&decoded) };
+### Hash Verification
 
-Hash Verification
+Always verify the stored hash:
 
-Always verify the stored hash against recomputed hash:
-rust
-
+```rust
 let computed_hash = sha256(&payload + &serialized_metadata);
 if computed_hash != container.hash {
     return Err("File integrity check failed");
 }
+```
 
-Example: Minimal PNG with AIMG
-Hex dump (simplified)
-text
+### Legacy Marker Support
 
+For backward compatibility with older AIMG files that used `AIMG` marker:
+
+```rust
+fn extract_from_legacy_marker(png_data: &[u8]) -> Result<AiContainer, ImageCodecError> {
+    for i in 0..png_data.len().saturating_sub(8) {
+        if &png_data[i..i+4] == b"AIMG" {
+            // Legacy format: length + raw CBOR
+            let len_bytes: [u8; 4] = png_data[i+4..i+8].try_into().unwrap();
+            let data_len = u32::from_le_bytes(len_bytes) as usize;
+            return Ok(AiContainer::deserialize(&png_data[i+8..i+8+data_len])?);
+        }
+    }
+    Err(ImageCodecError::NoAimgChunk)
+}
+```
+
+## Example: Minimal PNG with AIMG
+
+### Hex dump (simplified)
+
+```
 89 50 4E 47 0D 0A 1A 0A  ← PNG signature
+
 00 00 00 0D              ← IHDR length (13)
 49 48 44 52              ← IHDR type
 00 00 00 10 00 00 00 10  ← 16x16 image
 08 02 00 00 00           ← 8-bit, RGB, no compression
 XX XX XX XX              ← CRC
 
-00 00 00 3F              ← tEXt length (63)
-74 45 58 74              ← tEXt type
-41 49 4D 47 00           ← "AIMG\0"
-[base64 encoded CBOR...] ← metadata
+... IDAT chunks ...
+
+00 00 00 1F              ← aiMg length (31)
+61 69 4D 67              ← 'aiMg' type
+[CBOR metadata...]       ← Raw CBOR (31 bytes)
 XX XX XX XX              ← CRC
 
-... IDAT chunks ...
 00 00 00 00              ← IEND length
 49 45 4E 44              ← IEND type
 AE 42 60 82              ← CRC
+```
 
-File Size Overhead
-Original PNG	Metadata	AIMG Size	Overhead
-100 KB	200 B	100.3 KB	0.3%
-1 MB	200 B	1.00 MB	0.02%
-10 MB	200 B	10.00 MB	0.002%
+## File Size Overhead
 
-Base64 encoding adds ~33% overhead to metadata only, not the entire file.
-Testing Vectors
-Test AIMG File Generation
-bash
+| Original PNG | Metadata | AIMG Size | Overhead |
+|--------------|----------|-----------|----------|
+| 100 KB | 200 B | 100.2 KB | 0.2% |
+| 1 MB | 200 B | 1.00 MB | 0.02% |
+| 10 MB | 200 B | 10.00 MB | 0.002% |
 
-# Create test AIMG
-echo '{"width":10,"height":10,"pixels":[0,0,0]}' | \
-  cargo run --bin aimf -- ingest --type image --output test.aimg --model test --version 1.0
+**Note:** No base64 encoding means minimal overhead (raw CBOR bytes only).
+
+## Testing Vectors
+
+### Create Test AIMG
+
+```bash
+# Generate raw RGB and embed
+cat image.rgb | cargo run --bin aimf -- raw \
+  --output test.aimg \
+  --type image \
+  --width 512 \
+  --height 512 \
+  --model "StableDiffusion" \
+  --version "1.5"
 
 # Verify structure
 pngcheck -v test.aimg
-# Expected output: ... tEXt 'AIMG' ...
+# Expected output: ... chunk 'aiMg' at position X ...
 
 # Extract metadata
 cargo run --bin aimf -- info test.aimg
+```
 
-Expected Output
-text
+### Expected Output
 
+```
 File: test.aimg
 Format: AIMG (AI Image)
 Container: PNG
-Model: test v1.0
-Timestamp: 1705315200
+Model: StableDiffusion v1.5
+Dimensions: 512x512
+Timestamp: 2024-01-15 12:00:00 UTC
 Hash: 5e884898da28047151d0e56f8dc6292773603d0d6aabbdd62a11ef721d1542d8
 Signature: Not signed
 Valid: ✅ Yes
+```
 
-References
+## References
 
-    PNG Specification (RFC 2083)
+- [PNG Specification (RFC 2083)](https://datatracker.ietf.org/doc/html/rfc2083)
+- [CBOR Specification (RFC 8949)](https://datatracker.ietf.org/doc/html/rfc8949)
+- [PNG Chunk Types](http://www.libpng.org/pub/png/spec/1.2/PNG-Chunks.html)
 
-    CBOR Specification (RFC 8949)
+## Changelog
 
-    Base64 (RFC 4648)
-
-Changelog
-Version	Date	Changes
-1.0	2026-01-15	Initial specification
+| Version | Date | Changes |
+|---------|------|---------|
+| 1.0 | 2026-01-15 | Initial specification (custom `aiMg` chunk, raw CBOR, inserted before IEND) |
+```

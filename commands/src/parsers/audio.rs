@@ -1,6 +1,6 @@
 // media-engine/commands/src/parsers/audio.rs
 use crate::traits::*;
-use anyhow::{Context, Result};
+use anyhow::{Result};
 use hound::{WavReader, WavSpec, WavWriter};
 
 pub struct AudioParser;
@@ -8,78 +8,10 @@ pub struct AudioParser;
 impl AudioParser {
     pub fn parse_audio(data: &[u8], format: InputFormat, rules: &ValidationRules) -> Result<ParsedMedia> {
         match format {
-            InputFormat::Json => Self::parse_json_audio(data, rules),
             InputFormat::Raw => Self::parse_raw_audio(data, rules),
             InputFormat::Encoded => Self::decode_from_wav(data).map(|a| ParsedMedia::Audio(a)),
             _ => anyhow::bail!("Unsupported audio input format: {:?}", format),
         }
-    }
-
-    fn parse_json_audio(data: &[u8], rules: &ValidationRules) -> Result<ParsedMedia> {
-        let v: serde_json::Value = serde_json::from_slice(data)?;
-
-        // Parse sample rate
-        let sample_rate = v.get("sample_rate")
-            .and_then(|v| v.as_u64())
-            .context("Missing or invalid 'sample_rate'")? as u32;
-
-        if sample_rate == 0 || sample_rate > rules.max_sample_rate {
-            anyhow::bail!("Sample rate {} out of range (1-{})", sample_rate, rules.max_sample_rate);
-        }
-
-        // Parse channels (optional, default to 1)
-        let channels = v.get("channels")
-            .and_then(|v| v.as_u64())
-            .unwrap_or(1) as u16;
-
-        if channels == 0 || channels > 32 {
-            anyhow::bail!("Invalid channel count: {}", channels);
-        }
-
-        // Parse samples array
-        let samples_array = v.get("samples")
-            .and_then(|v| v.as_array())
-            .context("Missing or invalid 'samples' array")?;
-
-        if samples_array.is_empty() {
-            anyhow::bail!("Audio must contain at least one sample");
-        }
-
-        if samples_array.len() > rules.max_audio_samples {
-            anyhow::bail!(
-                "Too many samples: {} (max: {})", 
-                samples_array.len(), 
-                rules.max_audio_samples
-            );
-        }
-
-        // Parse samples with validation
-        let mut samples = Vec::with_capacity(samples_array.len());
-        for (i, val) in samples_array.iter().enumerate() {
-            let sample = val.as_f64()
-                .context(format!("Sample {} is not a number", i))? as f32;
-
-            if sample < -1.0 || sample > 1.0 {
-                anyhow::bail!("Sample {} out of range: {} (must be -1.0 to 1.0)", i, sample);
-            }
-            if sample.is_nan() {
-                anyhow::bail!("Sample {} is NaN", i);
-            }
-            if sample.is_infinite() {
-                anyhow::bail!("Sample {} is infinite", i);
-            }
-
-            samples.push(sample);
-        }
-
-        let duration_secs = samples.len() as f64 / sample_rate as f64;
-
-        Ok(ParsedMedia::Audio(AudioData {
-            sample_rate,
-            samples,
-            channels,
-            duration_secs,
-        }))
     }
 
     fn parse_raw_audio(data: &[u8], rules: &ValidationRules) -> Result<ParsedMedia> {
@@ -104,12 +36,12 @@ impl AudioParser {
             anyhow::bail!("Too many samples in raw data: {}", samples.len());
         }
 
-        Ok(ParsedMedia::Audio(AudioData {
-            sample_rate: 44100, // Default, caller should specify
+        Ok(ParsedMedia::Audio(AudioData::from_samples (
+            44100, // Default, caller should specify
             samples,
-            channels: 1,
-            duration_secs: 0.0, // Unknown for raw
-        }))
+            1,
+            0.0, // Unknown for raw
+        )?))
     }
 
     pub fn encode_to_wav(audio: &AudioData) -> Result<Vec<u8>> {
@@ -138,19 +70,20 @@ impl AudioParser {
     pub fn decode_from_wav(data: &[u8]) -> Result<AudioData> {
         let cursor = std::io::Cursor::new(data);
         let mut reader = WavReader::new(cursor)?;
-
+        
         let spec = reader.spec();
         let samples: Result<Vec<f32>, _> = reader.samples::<f32>().collect();
         let samples = samples?;
-
+        
         let duration_secs = samples.len() as f64 / spec.sample_rate as f64;
-
-        Ok(AudioData {
-            sample_rate: spec.sample_rate,
+        
+        // Use disk streaming for large audio
+        AudioData::from_samples(
+            spec.sample_rate,
             samples,
-            channels: spec.channels,
+            spec.channels,
             duration_secs,
-        })
+        )
     }
 
     pub fn get_wav_info(data: &[u8]) -> Result<MediaInfo> {

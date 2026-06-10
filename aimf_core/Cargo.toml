@@ -13,7 +13,7 @@ keywords = ["ai", "media", "format", "container", "metadata"]
 categories = ["multimedia", "encoding"]
 
 [dependencies]
-serde_cbor = { workspace = true }
+ciborium = { workspace = true }
 serde = { workspace = true }
 anyhow = { workspace = true }
 thiserror= { workspace = true }

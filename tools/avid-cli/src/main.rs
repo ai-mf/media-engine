@@ -1,9 +1,9 @@
 use clap::{Parser, Subcommand};
+use std::path::PathBuf;
 use media_engine_commands::{
     common::*,
     create::CreateCommand,
     raw::RawCreateCommand,
-    json_input::JsonCreateCommand,
     info::InfoCommand,
     verify::VerifyCommand,
     extract::ExtractCommand,
@@ -14,6 +14,7 @@ use media_engine_commands::{
 };
 use media_engine_commands::CommandExecutor;
 use cli_common::video_context;
+use aimf_core::debug_print;
 
 
 #[derive(Parser)]
@@ -40,7 +41,6 @@ struct Cli {
 enum Commands {
     #[command(visible_alias = "c")] Create(CreateArgs),
     #[command(visible_alias = "r")] Raw(RawCreateArgs),
-    #[command(visible_alias = "j")] Json(JsonCreateArgs),
     #[command(visible_alias = "i")] Info(InfoArgs),
     #[command(visible_alias = "v")] Verify(VerifyArgs),
     #[command(visible_alias = "e")] Extract(ExtractArgs),
@@ -53,18 +53,75 @@ enum Commands {
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     let cli = Cli::parse();
-    let ctx = video_context(cli.verbose, !cli.no_progress, cli.c2pa);
 
     match cli.command {
-        Commands::Create(args) => CreateCommand::execute(args, &ctx).await,
-        Commands::Raw(args) => RawCreateCommand::execute(args, &ctx).await,
-        Commands::Json(args) => JsonCreateCommand::execute(args, &ctx).await,
-        Commands::Info(args) => InfoCommand::execute(args, &ctx).await,
-        Commands::Verify(args) => VerifyCommand::execute(args, &ctx).await,
-        Commands::Extract(args) => ExtractCommand::execute(args, &ctx).await,
-        Commands::View(args) => ViewCommand::execute(args, &ctx).await,
-        Commands::Sign(args) => SignCommand::execute(args, &ctx).await,
-        Commands::Batch(args) => BatchCommand::execute(args, &ctx).await,
-        Commands::GenKey(args) => GenKeyCommand::execute(args, &ctx).await,
+        Commands::Create(mut args) => {
+            args.output = enforce_video_output(args.output);
+            let ctx = video_context(cli.verbose, !cli.no_progress, cli.c2pa);
+            CreateCommand::execute(args, &ctx).await
+        }
+        Commands::Raw(mut args) => {
+            args.common.output = enforce_video_output(args.common.output);
+            let ctx = video_context(cli.verbose, !cli.no_progress, cli.c2pa);
+            RawCreateCommand::execute(args, &ctx).await
+        }
+        Commands::Info(args) => {
+            let ctx = video_context(cli.verbose, !cli.no_progress, cli.c2pa);
+            InfoCommand::execute(args, &ctx).await
+        }
+        Commands::Verify(args) => {
+            let ctx = video_context(cli.verbose, !cli.no_progress, cli.c2pa);
+            VerifyCommand::execute(args, &ctx).await
+        }
+        Commands::Extract(args) => {
+            let ctx = video_context(cli.verbose, !cli.no_progress, cli.c2pa);
+            ExtractCommand::execute(args, &ctx).await
+        }
+        Commands::View(args) => {
+            let ctx = video_context(cli.verbose, !cli.no_progress, cli.c2pa);
+            ViewCommand::execute(args, &ctx).await
+        }
+        Commands::Sign(args) => {
+            let ctx = video_context(cli.verbose, !cli.no_progress, cli.c2pa);
+            SignCommand::execute(args, &ctx).await
+        }
+        Commands::Batch(args) => {
+            let ctx = video_context(cli.verbose, !cli.no_progress, cli.c2pa);
+            BatchCommand::execute(args, &ctx).await
+        }
+        Commands::GenKey(args) => {
+            let ctx = video_context(cli.verbose, !cli.no_progress, cli.c2pa);
+            GenKeyCommand::execute(args, &ctx).await
+        }
+    }
+}
+
+// Similar structure, but with enforce_video_output()
+fn enforce_video_output(output: PathBuf) -> PathBuf {
+    let ext = output.extension().and_then(|e| e.to_str());
+    
+    match ext {
+        Some("mp4") => {
+            let stem = output.file_stem().unwrap();
+            let new_name = format!("{}.avid.mp4", stem.to_string_lossy());
+            let new_path = output.with_file_name(new_name);
+            debug_print!("📝 Note: Output renamed to '{}' (AIMF video format)", new_path.display());
+            new_path
+        }
+        Some("avid") => output,
+        Some(other) => {
+            let stem = output.file_stem().unwrap();
+            let new_name = format!("{}.avid", stem.to_string_lossy());
+            let new_path = output.with_file_name(new_name);
+            debug_print!("⚠️  Warning: Extension '.{}' is not standard for AIMF video.", other);
+            debug_print!("📝 Using '{}' instead.", new_path.display());
+            new_path
+        }
+        None => {
+            let new_name = format!("{}.avid", output.to_string_lossy());
+            let new_path = output.with_file_name(new_name);
+            debug_print!("📝 Note: Added .avid extension -> '{}'", new_path.display());
+            new_path
+        }
     }
 }

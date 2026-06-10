@@ -4,7 +4,7 @@ use crate::common::*;
 use crate::utils::ProgressTracker;
 use anyhow::{Context, Result};
 use async_trait::async_trait;
-use aimf_core::AiContainer;
+use aimf_core::{AiContainer, debug_print};
 
 pub struct ExtractCommand;
 
@@ -44,13 +44,13 @@ impl CommandExecutor for ExtractCommand {
             
             // Print extraction details
             if ctx.verbose {
-                println!("\n📊 Extraction Details:");
-                println!("   Source: {}", args.file.display());
-                println!("   Destination: {}", args.output.display());
-                println!("   Size: {}", size);
-                println!("   Type: {:?}", container.media_type);
-                println!("   Encoding: {}", container.encoding);
-                println!("   Model: {} v{}", container.metadata.model_name, container.metadata.model_version);
+                debug_print!("\n📊 Extraction Details:");
+                debug_print!("   Source: {}", args.file.display());
+                debug_print!("   Destination: {}", args.output.display());
+                debug_print!("   Size: {}", size);
+                debug_print!("   Type: {:?}", container.media_type);
+                debug_print!("   Encoding: {}", container.encoding);
+                debug_print!("   Model: {} v{}", container.metadata.model_name, container.metadata.model_version);
             }
         }
 

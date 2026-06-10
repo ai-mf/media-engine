@@ -9,6 +9,7 @@ Cargo.lock
 *.avid
 *.png
 *.wav
+*.mp3
 *.mp4
 
 # Python

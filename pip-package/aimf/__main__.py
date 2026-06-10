@@ -1,42 +1,19 @@
 #!/usr/bin/env python3
-"""
-AIMF Python wrapper - calls the actual aimf binary
-"""
+"""AIMF Python wrapper - calls the actual aimf binary"""
 
 import sys
 import subprocess
-import os
-import shutil
-
-def find_aimf_binary():
-    """Find the aimf binary in common locations"""
-    aimf = shutil.which('aimf')
-    if aimf:
-        return aimf
-    
-    cargo_bin = os.path.expanduser("~/.cargo/bin/aimf")
-    if os.path.exists(cargo_bin):
-        return cargo_bin
-    
-    if os.path.exists("/usr/local/bin/aimf"):
-        return "/usr/local/bin/aimf"
-    
-    if os.path.exists("./aimf"):
-        return "./aimf"
-    
-    return None
+from .binary import ensure_binary
 
 def main():
-    aimf_bin = find_aimf_binary()
-    
-    if not aimf_bin:
-        print("❌ AIMF binary not found!", file=sys.stderr)
-        print("\nPlease install AIMF first:", file=sys.stderr)
-        print("  cargo install aimf-cli", file=sys.stderr)
-        sys.exit(1)
+    try:
+        aimf_bin = ensure_binary()
+    except Exception as e:
+        print(f"❌ Failed to install AIMF binary: {e}", file=sys.stderr)
+        return 1
     
     result = subprocess.run([aimf_bin] + sys.argv[1:])
-    sys.exit(result.returncode)
+    return result.returncode
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())

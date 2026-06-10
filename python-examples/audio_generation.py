@@ -7,19 +7,19 @@ import math
 def main():
     print("🤖 Simulating AI audio generation...")
     
-    # Create a simple sine wave (0.1 seconds at 44.1kHz)
+    # Create a simple sine wave (0.5 seconds at 44.1kHz)
     sample_rate = 44100
-    duration = 0.1
+    duration = 0.5
     num_samples = int(sample_rate * duration)
     
     samples = []
     for i in range(num_samples):
         t = i / sample_rate
-        sample = math.sin(2 * math.pi * 440 * t)
+        sample = math.sin(2 * math.pi * 440 * t) * 0.5  # 440Hz sine wave
         samples.append(sample)
     
-    # Use AIMF Python wrapper
-    audio = AudioAI.from_samples(samples, sample_rate=sample_rate)
+    # Create audio using the wrapper
+    audio = AudioAI.from_samples(samples, sample_rate=sample_rate, channels=1)
     audio.with_model("test-ai", "1.0")
     audio.save("test_audio.aaud")
     

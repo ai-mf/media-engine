@@ -2,8 +2,11 @@
 use anyhow::Result;
 use std::path::PathBuf;
 use async_trait::async_trait;
-use aimf_core::{AiContainer, MediaType};
+use aimf_core::{AiContainer, MediaType, debug_print};
 use clap::Args;
+use std::fs::File;
+use tempfile::{TempDir,tempdir};
+use std::io::{Write};
 
 /// Core trait that every media command must implement
 #[async_trait]
@@ -112,27 +115,88 @@ pub trait MediaProcessor: Send + Sync {
 /// Input format types that commands can handle
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum InputFormat {
-    Json,
     Raw,
     Encoded,
     Unknown,
 }
 
 /// Structured media representation
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub enum ParsedMedia {
     Audio(AudioData),
     Image(ImageData),
     Video(VideoData),
 }
 
+impl ParsedMedia {
+    pub fn media_type(&self) -> MediaType {
+        match self {
+            ParsedMedia::Audio(_) => MediaType::Audio,
+            ParsedMedia::Image(_) => MediaType::Image,
+            ParsedMedia::Video(_) => MediaType::Video,
+        }
+    }
+}
+
 /// Audio data structure
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub struct AudioData {
     pub sample_rate: u32,
     pub samples: Vec<f32>,
+    pub audio_samples: AudioSamples,  // NEW
     pub channels: u16,
     pub duration_secs: f64,
+}
+
+impl AudioData {
+    /// Create AudioData with automatic disk streaming for large files
+    pub fn from_samples(sample_rate: u32, samples: Vec<f32>, channels: u16, duration_secs: f64) -> Result<Self> {
+        // If samples are too large (> 5 million = ~20MB), write to disk
+        if samples.len() > 5_000_000 {
+            debug_print!("  Audio too large for RAM ({} MB), streaming to disk...", 
+                (samples.len() * 4) / (1024 * 1024));
+            
+            let temp_dir = tempdir()?;
+            let audio_path = temp_dir.path().join("audio_samples.raw");
+            let mut file = File::create(&audio_path)?;
+            
+            // Write samples to disk in chunks
+            for chunk in samples.chunks(10000) {
+                let bytes: Vec<u8> = chunk.iter()
+                    .flat_map(|&s| s.to_le_bytes())
+                    .collect();
+                file.write_all(&bytes)?;
+            }
+            
+            Ok(Self {
+                sample_rate,
+                samples: vec![], // Empty - stored on disk
+                audio_samples: AudioSamples::OnDisk(audio_path, temp_dir),
+                channels,
+                duration_secs,
+            })
+        } else {
+            // Small enough for RAM
+            Ok(Self {
+                sample_rate,
+                samples: samples.clone(),
+                audio_samples: AudioSamples::InMemory(samples),
+                channels,
+                duration_secs,
+            })
+        }
+    }
+    
+    /// Create empty audio data (for placeholders)
+    pub fn empty() -> Self {
+        Self {
+            sample_rate: 44100,
+            samples: vec![],
+            audio_samples: AudioSamples::InMemory(vec![]),
+            channels: 1,
+            duration_secs: 0.0,
+        }
+    }
 }
 
 /// Image data structure
@@ -145,12 +209,28 @@ pub struct ImageData {
 }
 
 /// Video data structure
-#[derive(Debug, Clone)]
+#[derive(Debug)]
+pub enum VideoFrames {
+    InMemory(Vec<Vec<u8>>),
+    OnDisk(PathBuf, TempDir),
+}
+
+// Add this enum for audio samples storage
+#[derive(Debug)] 
+pub enum AudioSamples {
+    InMemory(Vec<f32>),
+    OnDisk(PathBuf, TempDir),
+}
+
+// Update VideoData struct
+#[derive(Debug)]
 pub struct VideoData {
     pub width: u32,
     pub height: u32,
     pub fps: u32,
-    pub frames: Vec<Vec<u8>>,
+    pub frames: Vec<Vec<u8>>,  // Kept for backward compat, but mostly empty
+    pub frames_temp_path: Option<PathBuf>, 
+    pub frames_temp_dir: Option<TempDir>,  
     pub audio: Option<AudioData>,
     pub frame_count: usize,
     pub duration_secs: f64,

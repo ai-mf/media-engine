@@ -32,6 +32,7 @@ pub struct CreateArgs {
     /// Input format hint (json, raw, auto)
     #[arg(long, default_value = "auto")]
     pub input_format: String,
+    
 }
 
 /// Raw format input arguments
@@ -75,6 +76,9 @@ pub struct RawCreateArgs {
     /// Encoding speed preset (default: medium)
     #[arg(long, default_value = "medium")]
     pub preset: String,
+
+    #[arg(long)]
+    pub frame_count: Option<usize>,  // Number of video frames
 }
 
 /// JSON input arguments
@@ -98,6 +102,12 @@ pub struct InfoArgs {
     /// Output format (text, json)
     #[arg(long, default_value = "text")]
     pub output_format: String,
+   
+    #[arg(long, help = "Simple output (file:status)")]
+    pub simple: bool,
+    
+    #[arg(long, help = "JSON output for API integration")]
+    pub json: bool,
 }
 
 /// Verify command arguments
@@ -114,6 +124,12 @@ pub struct VerifyArgs {
     /// Quiet mode - only output verification status code
     #[arg(short, long)]
     pub quiet: bool,
+
+    #[arg(long, help = "Simple output (PASSED/FAILED)")]
+    pub simple: bool,
+    
+    #[arg(long, help = "JSON output for API integration")]
+    pub json: bool,
 }
 
 /// Extract command arguments

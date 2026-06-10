@@ -4,10 +4,12 @@ use crate::common::*;
 use crate::utils::ProgressTracker;
 use anyhow::{Context, Result};
 use std::path::PathBuf;
-use aimf_core::{AiContainer,VerificationResult, MediaType};
+use aimf_core::{AiContainer,VerificationResult, MediaType, debug_print};
 use media_engine_signing::AiContainerSigningExt;
 use async_trait::async_trait;
-
+use aimf_image_codec;
+use aimf_audio_codec;
+use aimf_video_codec;
 pub struct VerifyCommand;
 
 // Need to import or define AVID_UUID constant
@@ -19,7 +21,7 @@ const AVID_UUID: [u8; 16] = [
 #[async_trait]
 impl CommandExecutor for VerifyCommand {
     type Args = VerifyArgs;
-
+    
     async fn execute(args: Self::Args, ctx: &CommandContext) -> Result<()> {
         let progress = ProgressTracker::new(ctx.show_progress && !args.quiet, "Verifying file...");
 
@@ -29,42 +31,87 @@ impl CommandExecutor for VerifyCommand {
 
         // Extract AI container
         progress.set_message("Extracting AI container...");
-        let container = match (ctx.extract_function)(&data) {
-            Ok(c) => c,
+
+        let (container, original_encoded_media) = match (ctx.extract_function)(&data) {
+            Ok(c) => {
+                let original = match c.media_type {
+                    MediaType::Image => extract_original_image_payload(&data)?,
+                    MediaType::Audio => extract_original_audio_payload(&data)?,
+                    MediaType::Video => extract_original_video_payload(&data)?,
+                };
+                (c, original)
+            }
             Err(e) => {
-                if args.quiet {
-                    println!("INVALID:FILE_FORMAT");
+                debug_print!("DEBUG: Primary extraction failed: {}, trying all formats", e);
+                
+                if let Ok(container) = aimf_image_codec::extract_aimg_from_png(&data) {
+                    let original = extract_original_image_payload(&data)?;
+                    (container, original)
+                } else if let Ok(container) = aimf_audio_codec::extract_aaud_from_wav(&data) {
+                    let original = extract_original_audio_payload(&data)?;
+                    (container, original)
+                } else if let Ok(container) = aimf_video_codec::extract_avid_from_mp4(&data) {
+                    let original = extract_original_video_payload(&data)?;
+                    (container, original)
                 } else {
-                    println!("❌ Failed to extract AI container: {}", e);
-                    println!("   This file may not be a valid AI media file");
+                    if args.quiet {
+                        println!("INVALID:FILE_FORMAT");
+                    } else {
+                        eprintln!("❌ Failed to extract AI container: {}", e);
+                        eprintln!("   This file may not be a valid AI media file");
+                    }
+                    std::process::exit(1);
                 }
-                std::process::exit(1);
             }
         };
-        let original_encoded_media = match container.media_type {
-            MediaType::Image => extract_original_image_payload(&data)?,
-            MediaType::Audio => extract_original_audio_payload(&data)?,
-            MediaType::Video => extract_original_video_payload(&data)?,
-        };
+
         // Perform full verification
         progress.set_message("Performing verification...");
         let result = container.full_verify(&original_encoded_media);
-
         progress.finish_with_message("Verification complete");
-
-        // Output results
+        
+        // Simple mode for scripting (one line)
+        if args.simple {
+            let passed = result.hash_valid && (result.signature_valid != Some(false));
+            if passed {
+                println!("PASSED");
+            } else {
+                println!("FAILED");
+                std::process::exit(1);
+            }
+            return Ok(());
+        }
+        
+        // JSON output for API integration
+        if args.json {
+            let output = serde_json::json!({
+                "file": args.file.to_string_lossy(),
+                "verified": result.hash_valid && (result.signature_valid != Some(false)),
+                "hash_valid": result.hash_valid,
+                "signed": result.is_signed,
+                "signature_valid": result.signature_valid,
+                "media_type": format!("{:?}", container.media_type),
+                "model": container.metadata.model_name,
+                "version": container.metadata.model_version,
+                "timestamp": container.metadata.timestamp,
+                "public_key": container.metadata.public_key.as_ref().map(hex::encode),
+            });
+            println!("{}", serde_json::to_string_pretty(&output)?);
+            return Ok(());
+        }
+        
+        // Quiet mode: single status line
         if args.quiet {
-            // Quiet mode: output single status line
             let status = match (result.hash_valid, result.is_signed, result.signature_valid) {
                 (true, true, Some(true)) => "VALID:SIGNED",
                 (true, true, Some(false)) => "INVALID:SIGNATURE_MISMATCH",
-                (true, true, None) => "VALID:UNSIGNED",  // Signed flag true but no signature? treat as unsigned
+                (true, true, None) => "VALID:UNSIGNED",
                 (true, false, _) => "VALID:UNSIGNED",
                 (false, _, _) => "INVALID:HASH_MISMATCH",
             };
             println!("{}", status);
         } else {
-            // Verbose output
+            // Verbose human-readable output
             print_verification_results(&args.file, &container, &result);
         }
 
@@ -95,79 +142,79 @@ fn print_verification_results(
     container: &AiContainer,
     result: &VerificationResult,
 ) {
-    println!("\n🔍 Verification Results");
-    println!("═══════════════════════════════════════");
-    println!("File: {}", file_path.display());
-    println!("───────────────────────────────────────");
+    debug_print!("\n🔍 Verification Results");
+    debug_print!("═══════════════════════════════════════");
+    debug_print!("File: {}", file_path.display());
+    debug_print!("───────────────────────────────────────");
     
     // Integrity check
-    println!("Integrity Check:");
-    println!("  Computed Hash: {}", hex::encode(&container.hash[..8]));
-    println!("  Status: {}", if result.hash_valid {
+    debug_print!("Integrity Check:");
+    debug_print!("  Computed Hash: {}", hex::encode(&container.hash[..8]));
+    debug_print!("  Status: {}", if result.hash_valid {
         "✅ PASS - File has not been modified"
     } else {
         "❌ FAIL - File has been tampered with or corrupted"
     });
 
     // Signature verification
-    println!("\nSignature Verification:");
+    debug_print!("\nSignature Verification:");
     if result.is_signed {
-        println!("  Signed: ✅ Yes");
+        debug_print!("  Signed: ✅ Yes");
         match result.signature_valid {
             Some(true) => {
-                println!("  Signature: ✅ VALID");
-                println!("  Trust: ✅ Cryptographically verified");
+                debug_print!("  Signature: ✅ VALID");
+                debug_print!("  Trust: ✅ Cryptographically verified");
                 if let Some(pk) = &container.metadata.public_key {
-                    println!("  Signer: {}...", hex::encode(&pk[..8]));
+                    debug_print!("  Signer: {}...", hex::encode(&pk[..8]));
                 }
             }
             Some(false) => {
-                println!("  Signature: ❌ INVALID");
-                println!("  Trust: ❌ Cannot verify - file may be tampered");
-                println!("  ⚠️  The signature does not match the content");
+                debug_print!("  Signature: ❌ INVALID");
+                debug_print!("  Trust: ❌ Cannot verify - file may be tampered");
+                debug_print!("  ⚠️  The signature does not match the content");
             }
             None => {
-                println!("  Signature: ⚠️  Cannot verify");
-                println!("  Trust: ⚠️  Unknown - verification failed");
+                debug_print!("  Signature: ⚠️  Cannot verify");
+                debug_print!("  Trust: ⚠️  Unknown - verification failed");
             }
         }
     } else {
-        println!("  Signed: ❌ No");
-        println!("  Trust: ⚠️  Unsigned - no cryptographic proof of origin");
-        println!("  💡 Tip: Use 'sign' command to add cryptographic signature");
+        debug_print!("  Signed: ❌ No");
+        debug_print!("  Trust: ⚠️  Unsigned - no cryptographic proof of origin");
+        debug_print!("  💡 Tip: Use 'sign' command to add cryptographic signature");
     }
 
-    println!("───────────────────────────────────────");
+    debug_print!("───────────────────────────────────────");
     
     // Overall verdict
     if result.hash_valid && (!result.is_signed || result.signature_valid == Some(true)) {
-        println!("Overall: ✅ FILE IS VALID");
+        debug_print!("Overall: ✅ FILE IS VALID");
     } else {
-        println!("Overall: ❌ FILE VERIFICATION FAILED");
+        debug_print!("Overall: ❌ FILE VERIFICATION FAILED");
     }
-    println!("═══════════════════════════════════════\n");
+    debug_print!("═══════════════════════════════════════\n");
 }
 
 fn print_metadata_summary(container: &AiContainer) {
-    println!("📋 Embedded Metadata:");
-    println!("  Model: {} v{}", container.metadata.model_name, container.metadata.model_version);
-    println!("  Modality: {}", container.metadata.modality);
-    println!("  Format: {}", container.metadata.format);
+    debug_print!("📋 Embedded Metadata:");
+    debug_print!("  Model: {} v{}", container.metadata.model_name, container.metadata.model_version);
+    debug_print!("  Modality: {}", container.metadata.modality);
+    debug_print!("  Format: {}", container.metadata.format);
     
     if let Some(dt) = chrono::DateTime::from_timestamp(container.metadata.timestamp as i64, 0) {
-        println!("  Created: {}", dt.format("%Y-%m-%d %H:%M:%S UTC"));
+        debug_print!("  Created: {}", dt.format("%Y-%m-%d %H:%M:%S UTC"));
     }
     
     if let (Some(w), Some(h)) = (container.metadata.width, container.metadata.height) {
-        println!("  Dimensions: {}x{}", w, h);
+        debug_print!("  Dimensions: {}x{}", w, h);
     }
     if let Some(sr) = container.metadata.sample_rate {
-        println!("  Sample Rate: {} Hz", sr);
+        debug_print!("  Sample Rate: {} Hz", sr);
     }
     if let Some(fps) = container.metadata.fps {
-        println!("  FPS: {}", fps);
+        debug_print!("  FPS: {}", fps);
     }
-    println!();
+    debug_print!();
 }
 
 fn verify_with_external_key(
@@ -192,20 +239,20 @@ fn verify_with_external_key(
     match container.verify_with_key(&verifying_key) {
         Ok(true) => {
             if !quiet {
-                println!("🔑 External Key Verification: ✅ MATCH");
-                println!("   The signature was created with this key");
+                debug_print!("🔑 External Key Verification: ✅ MATCH");
+                debug_print!("   The signature was created with this key");
             }
         }
         Ok(false) => {
             if !quiet {
-                println!("🔑 External Key Verification: ❌ MISMATCH");
-                println!("   The signature was NOT created with this key");
+                debug_print!("🔑 External Key Verification: ❌ MISMATCH");
+                debug_print!("   The signature was NOT created with this key");
             }
         }
         Err(e) => {
             if !quiet {
-                println!("🔑 External Key Verification: ⚠️  ERROR");
-                println!("   {}", e);
+                debug_print!("🔑 External Key Verification: ⚠️  ERROR");
+                debug_print!("   {}", e);
             }
         }
     }
@@ -213,25 +260,27 @@ fn verify_with_external_key(
     Ok(())
 }
 
-// // In verify.rs, replace the unimplemented functions with:
-
 // For images (PNG with AIMF/AIMG metadata appended at the end)
 fn extract_original_image_payload(file_bytes: &[u8]) -> Result<Vec<u8>> {
-    let marker = b"AIMG";
+    use aimf_image_codec::extract_aimg_with_media;
     
-    for i in 0..file_bytes.len().saturating_sub(8) {
-        if &file_bytes[i..i+4] == marker {
-            // Original PNG is everything before the marker
-            let original_png = &file_bytes[0..i];
-            println!("DEBUG: Found AIMG marker at offset {}, extracted {} bytes of original PNG", 
-                     i, original_png.len());
-            return Ok(original_png.to_vec());
+    match extract_aimg_with_media(file_bytes) {
+        Ok((_container, original_png)) => {
+            debug_print!("DEBUG: Extracted original PNG of {} bytes", original_png.len());
+            Ok(original_png)
+        }
+        Err(e) => {
+            debug_print!("DEBUG: Failed to extract with codec: {:?}, trying fallback", e);
+            // Fallback to marker-based extraction
+            let marker = b"AIMG";
+            for i in 0..file_bytes.len().saturating_sub(8) {
+                if &file_bytes[i..i+4] == marker {
+                    return Ok(file_bytes[0..i].to_vec());
+                }
+            }
+            Ok(file_bytes.to_vec())
         }
     }
-    
-    // No marker found - might be raw AIMF format without wrapper
-    println!("DEBUG: No AIMG marker found, using entire file as payload");
-    Ok(file_bytes.to_vec())
 }
 
 // For audio (WAV with AAUD chunk)
@@ -259,7 +308,7 @@ fn extract_original_audio_payload(file_bytes: &[u8]) -> Result<Vec<u8>> {
         
         if chunk_id == b"AAUD" {
             // Skip AAUD chunk - don't copy it
-            println!("DEBUG: Skipping AAUD chunk at offset {}", pos);
+            debug_print!("DEBUG: Skipping AAUD chunk at offset {}", pos);
         } else {
             // Copy non-AAUD chunk
             let chunk_end = pos + 8 + chunk_size;
@@ -277,7 +326,7 @@ fn extract_original_audio_payload(file_bytes: &[u8]) -> Result<Vec<u8>> {
         original_wav[4..8].copy_from_slice(&new_size.to_le_bytes());
     }
     
-    println!("DEBUG: Extracted original WAV payload of {} bytes", original_wav.len());
+    debug_print!("DEBUG: Extracted original WAV payload of {} bytes", original_wav.len());
     Ok(original_wav)
 }
 
@@ -313,12 +362,12 @@ fn extract_original_video_payload(file_bytes: &[u8]) -> Result<Vec<u8>> {
             // Copy non-AVID box
             original_mp4.extend_from_slice(&file_bytes[pos..pos+box_size]);
         } else {
-            println!("DEBUG: Skipping AVID UUID box at offset {}", pos);
+            debug_print!("DEBUG: Skipping AVID UUID box at offset {}", pos);
         }
         
         pos += box_size;
     }
     
-    println!("DEBUG: Extracted original MP4 payload of {} bytes", original_mp4.len());
+    debug_print!("DEBUG: Extracted original MP4 payload of {} bytes", original_mp4.len());
     Ok(original_mp4)
 }

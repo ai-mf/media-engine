@@ -1,3 +1,6 @@
+Here's your corrected **FAQ.md**:
+
+```markdown
 # Frequently Asked Questions
 
 ## General
@@ -51,6 +54,21 @@ Yes — new signature replaces old one.
 ### Do I need to trust a central authority?
 
 No — verification uses public key cryptography. You decide which public keys to trust.
+
+### What input formats are supported?
+
+RAW binary only (JSON format was removed in v1.0):
+- Audio: 16-bit signed little-endian PCM
+- Image: RGB24 (3 bytes per pixel)
+- Video: RGB24 frames + optional PCM audio
+
+### Can I convert existing MP3/MP4 files?
+
+Yes — use the `convert` command:
+```bash
+cargo run --bin aaud -- convert input.mp3 --output output.aaud --model "Model" --version "1.0"
+cargo run --bin avid -- convert input.mp4 --output output.avid --model "Model" --version "1.0"
+```
 
 ## Security
 
@@ -113,26 +131,23 @@ The file was created by a different tool or corrupted. Check with `file` command
 ```bash
 file mystery.file
 # Should show PNG, WAV, or MP4 data
+```
 
-Signature verification fails
+### Signature verification fails
 
 Possible causes:
+- File was modified after signing
+- Wrong public key (different signer)
+- File corruption
+- Bug (unlikely — open an issue)
 
-    File was modified after signing
+### FFmpeg not found (video)
 
-    Wrong public key (different signer)
+Install FFmpeg with extra codecs:
 
-    File corruption
-
-    Bug (unlikely — open an issue)
-
-FFmpeg not found (video)
-
-Install FFmpeg:
-bash
-
-# Ubuntu/Debian
-sudo apt install ffmpeg
+```bash
+# Ubuntu/Debian (recommended - full codec support)
+sudo apt install ffmpeg libavcodec-extra
 
 # macOS
 brew install ffmpeg
@@ -143,86 +158,102 @@ choco install ffmpeg
 # Windows (winget)
 winget install ffmpeg
 
-Build fails on Windows
+# Arch Linux
+sudo pacman -S ffmpeg
+```
+
+**Note:** `libavcodec-extra` provides additional codecs (MP3, AAC, H.264, etc.) beyond the basic `ffmpeg` package. Required for MP4 conversion.
+
+### Build fails on Windows
 
 Ensure you have:
+- Visual Studio Build Tools (with C++ support)
+- LLVM (for libclang)
+- FFmpeg installed
 
-    Visual Studio Build Tools (with C++ support)
+### "Permission denied" for private key
 
-    LLVM (for libclang)
-
-    FFmpeg installed
-
-"Permission denied" for private key
-bash
-
+```bash
 chmod 600 private.key   # Unix
 # Windows: Right-click → Properties → Security
+```
 
-Comparisons
-vs. C2PA (Content Authenticity Initiative)
-Aspect	AIMF	C2PA
-Complexity	Simple	Complex (JSON-LD, X.509)
-Dependencies	None (pure Rust)	Many (C2PA SDK)
-Backward compat	Yes (PNG/WAV/MP4)	Partial (some formats break)
-Signatures	Ed25519	X.509 (requires CA)
-Use case	Lightweight provenance	Enterprise DRM
+## Comparisons
 
-Choose AIMF if: You want simple, embeddable, no external dependencies.
-vs. EXIF for images
-Aspect	AIMF	EXIF
-Max metadata size	Unlimited	~64KB
-Signatures	Yes	No
-Audio/video support	Yes	No
-AI-specific fields	Yes (model, prompt hash)	No
-Development
-Can I use AIMF in my Rust project?
+### vs. C2PA (Content Authenticity Initiative)
+
+| Aspect | AIMF | C2PA |
+|--------|------|------|
+| Complexity | Simple | Complex (JSON-LD, X.509) |
+| Dependencies | None (pure Rust) | Many (C2PA SDK) |
+| Backward compat | Yes (PNG/WAV/MP4) | Partial (some formats break) |
+| Signatures | Ed25519 | X.509 (requires CA) |
+| Use case | Lightweight provenance | Enterprise DRM |
+
+**Choose AIMF if:** You want simple, embeddable, no external dependencies.
+
+### vs. EXIF for images
+
+| Aspect | AIMF | EXIF |
+|--------|------|------|
+| Max metadata size | Unlimited | ~64KB |
+| Signatures | Yes | No |
+| Audio/video support | Yes | No |
+| AI-specific fields | Yes (model, prompt hash) | No |
+
+## Development
+
+### Can I use AIMF in my Rust project?
 
 Yes — add to Cargo.toml:
-toml
 
+```toml
 [dependencies]
 aimf_core = { git = "https://github.com/ai-mf/media-engine" }
 aimf_image_codec = { git = "https://github.com/ai-mf/media-engine" }
+```
 
-Is there a Python binding?
+### Is there a Python binding?
 
 Not yet — planned for v1.1.
-How do I contribute?
+
+### How do I contribute?
 
 See CONTRIBUTING.md.
-Legal
-What's the license?
+
+## Legal
+
+### What's the license?
 
 Apache 2.0 — commercial-friendly, patent grant included.
-Can I use AIMF in proprietary software?
+
+### Can I use AIMF in proprietary software?
 
 Yes — Apache 2.0 allows proprietary use (just include attribution).
-Do I need to pay royalties?
+
+### Do I need to pay royalties?
 
 No — completely free.
-Is AIMF patented?
+
+### Is AIMF patented?
 
 No — we explicitly disclaim any patent rights (Apache 2.0 includes patent grant).
-Future
-What's planned for v1.0?
 
-    IANA registration
+## Future
 
-    Stable API (no breaking changes)
+### What's planned for v1.0?
 
-    Performance improvements
+- IANA registration
+- Stable API (no breaking changes)
+- Performance improvements
 
-What's planned for v2.0?
+### What's planned for v2.0?
 
-    Streaming API
+- Streaming API
+- Key revocation lists
+- Multi-signature support
+- WASM bindings
 
-    Key revocation lists
+### How do I request a feature?
 
-    Multi-signature support
-
-    WASM bindings
-
-How do I request a feature?
-
-Open a GitHub issue with [FEATURE] in the title.
+Open a GitHub issue with `[FEATURE]` in the title.

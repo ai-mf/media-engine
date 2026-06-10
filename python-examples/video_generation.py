@@ -5,42 +5,60 @@ from aimf import VideoAI
 import math
 
 def main():
-    print("🤖 Generating short video with audio...")
+    print("🤖 Simulating AI video generation...")
     
-    # Small video for testing
-    width = 32
-    height = 24
+    width = 64
+    height = 48
     fps = 10
-    duration = 1  # 1 second
-    num_frames = fps * duration
+    duration_secs = 1.0
+    frame_count = int(fps * duration_secs)
     
-    # Generate simple frames (moving pattern)
+    print(f"Generating {frame_count} frames ({duration_secs} seconds at {fps} fps)...")
+    
+    # Generate frames
     frames = []
-    for frame_num in range(num_frames):
-        frame_data = []
+    for frame_num in range(frame_count):
+        frame = []
         for y in range(height):
             for x in range(width):
-                color = (x + y + frame_num * 10) % 256
-                frame_data.append(color)
-                frame_data.append(color)
-                frame_data.append(color)
-        frames.append(frame_data)
+                # Moving dot effect
+                dot_x = int((frame_num * 5) % width)
+                dot_y = int((frame_num * 3) % height)
+                
+                if abs(x - dot_x) < 3 and abs(y - dot_y) < 3:
+                    r, g, b = 255, 255, 255  # White dot
+                else:
+                    r = (x + frame_num) % 256
+                    g = (y + frame_num * 2) % 256
+                    b = (x + y + frame_num * 3) % 256
+                
+                frame.append(r)
+                frame.append(g)
+                frame.append(b)
+        frames.append(frame)
+        
+        if frame_num % 5 == 0:
+            print(f"Progress: {frame_num + 1}/{frame_count} frames")
     
-    # Generate simple audio (short beep)
-    sample_rate = 8000  # Lower sample rate for testing
-    samples = []
-    for i in range(sample_rate * duration):
+    # Generate audio track
+    sample_rate = 22050
+    num_samples = int(sample_rate * duration_secs)
+    audio_samples = []
+    
+    for i in range(num_samples):
         t = i / sample_rate
-        sample = math.sin(2 * math.pi * 440 * t) * 0.3
-        samples.append(sample)
+        sample = math.sin(2 * math.pi * 440 * t) * 0.5  # 440Hz tone
+        audio_samples.append(sample)
     
-    # Use AIMF Python wrapper
+    print("Generating audio track...")
+    
+    # Create video using the wrapper
     video = VideoAI.from_frames(frames, width=width, height=height, fps=fps)
-    video.with_audio(samples, sample_rate=sample_rate)
     video.with_model("test-ai", "1.0")
+    video.with_audio(audio_samples, sample_rate=sample_rate)
     video.save("test_video.avid")
     
-    print("✅ Created test_video.avid")
+    print(f"✅ Created test_video.avid ({frame_count} frames)")
     print("🎬 View with: aimf view test_video.avid")
 
 if __name__ == "__main__":

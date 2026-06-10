@@ -17,35 +17,8 @@ pub struct UniversalParser;
 #[async_trait]
 impl MediaProcessor for UniversalParser {
 
-    async fn parse_input(&self, data: &[u8], format: InputFormat, rules: &ValidationRules) -> Result<ParsedMedia> {
+    async fn parse_input(&self, data: &[u8], format: InputFormat, _rules: &ValidationRules) -> Result<ParsedMedia> {
         match format {
-            InputFormat::Json => {
-                // Parse once for detection
-                let v: serde_json::Value = serde_json::from_slice(data)?;
-                
-                // Check for video (has frames array)
-                if v.get("frames").is_some() {
-                    return VideoParser::parse_video(data, format, rules);
-                }
-                
-                // Check for image (has pixels array)
-                if v.get("pixels").is_some() {
-                    return ImageParser::parse_image(data, format, rules);
-                }
-                
-                // Check for audio (has samples array)
-                if v.get("samples").is_some() {
-                    return AudioParser::parse_audio(data, format, rules);
-                }
-                
-                // Check type field as fallback
-                match v.get("type").and_then(|t| t.as_str()) {
-                    Some("video") => VideoParser::parse_video(data, format, rules),
-                    Some("image") => ImageParser::parse_image(data, format, rules),
-                    Some("audio") => AudioParser::parse_audio(data, format, rules),
-                    _ => anyhow::bail!("Unable to determine media type from JSON: missing required fields"),
-                }
-            }
             InputFormat::Raw => {
                 anyhow::bail!("Raw format requires explicit media type")
             }

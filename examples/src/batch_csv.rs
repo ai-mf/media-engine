@@ -5,7 +5,7 @@
 use std::path::PathBuf;
 use std::fs;
 use std::io::Write;
-use serde_json::json;
+use std::process::{Command, Stdio};
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("📊 Batch Processing from CSV file");
@@ -28,27 +28,25 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         
         let output_path = match *media_type {
             "audio" => {
-                let json_content = json!({
-                    "sample_rate": params.parse::<u32>()?,
-                    "channels": 1,
-                    "samples": vec![0.1, -0.2, 0.3, -0.1, 0.4],
-                });
+                let sample_rate = params.parse::<u32>()?;
+                let samples = vec![0.1, -0.2, 0.3, -0.1, 0.4];
                 
-                process_audio(&output_dir, name, &json_content)?
+                // Convert f32 samples to PCM16 bytes
+                let mut audio_bytes = Vec::new();
+                for &sample in &samples {
+                    let sample_i16 = (sample * i16::MAX as f64) as i16;
+                    audio_bytes.extend_from_slice(&sample_i16.to_le_bytes());
+                }
+                
+                process_audio_raw(&output_dir, name, sample_rate, &audio_bytes)?
             }
             "image" => {
                 let dimensions: Vec<&str> = params.split('x').collect();
                 let width = dimensions[0].parse::<u32>()?;
                 let height = dimensions[1].parse::<u32>()?;
                 
-                let json_content = json!({
-                    "width": width,
-                    "height": height,
-                    "format": "rgb8",
-                    "pixels": generate_pattern(width, height),
-                });
-                
-                process_image(&output_dir, name, &json_content)?
+                let pixels = generate_pattern(width, height);
+                process_image_raw(&output_dir, name, width, height, &pixels)?
             }
             "video" => {
                 let parts: Vec<&str> = params.split('@').collect();
@@ -57,14 +55,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 let height = dimensions[1].parse::<u32>()?;
                 let fps = parts[1].parse::<u32>()?;
                 
-                let json_content = json!({
-                    "width": width,
-                    "height": height,
-                    "fps": fps,
-                    "frames": generate_frames(10, width, height),
-                });
-                
-                process_video(&output_dir, name, &json_content)?
+                let frames = generate_frames(10, width, height);
+                process_video_raw(&output_dir, name, width, height, fps, &frames)?
             }
            _ => return Err(format!("Unknown media type: {}", media_type).into()),
         };
@@ -78,60 +70,84 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     Ok(())
 }
 
-fn process_audio(output_dir: &PathBuf, name: &str, data: &serde_json::Value) -> Result<PathBuf, Box<dyn std::error::Error>> {
+fn process_audio_raw(output_dir: &PathBuf, name: &str, sample_rate: u32, audio_bytes: &[u8]) -> Result<PathBuf, Box<dyn std::error::Error>> {
     let output_path = output_dir.join(format!("{}.aaud", name));
-    let json_string = serde_json::to_string(data)?;
     
-    let mut child = std::process::Command::new("cargo")
-        .args(&["run", "--bin", "aaud", "--", "json",
-                "--output", output_path.to_str().unwrap(),
-                "--model", "CSV-Batch",
-                "--version", "1.0","--key", "private.key",])
-        .stdin(std::process::Stdio::piped())
+    let mut child = Command::new("cargo")
+        .args(&[
+            "run", "--bin", "aimf", "--", "raw",
+            "--output", output_path.to_str().unwrap(),
+            "--model", "CSV-Batch",
+            "--version", "1.0",
+            "--type", "audio",
+            "--sample-rate", &sample_rate.to_string(),
+            "--channels", "1",
+            "--key", "private.key"
+        ])
+        .stdin(Stdio::piped())
         .spawn()?;
     
     let mut stdin = child.stdin.take().unwrap();
-    stdin.write_all(json_string.as_bytes())?;
+    stdin.write_all(audio_bytes)?;
     drop(stdin);
     
     child.wait()?;
     Ok(output_path)
 }
 
-fn process_image(output_dir: &PathBuf, name: &str, data: &serde_json::Value) -> Result<PathBuf, Box<dyn std::error::Error>> {
+fn process_image_raw(output_dir: &PathBuf, name: &str, width: u32, height: u32, pixels: &[u8]) -> Result<PathBuf, Box<dyn std::error::Error>> {
     let output_path = output_dir.join(format!("{}.aimg", name));
-    let json_string = serde_json::to_string(data)?;
     
-    let mut child = std::process::Command::new("cargo")
-        .args(&["run", "--bin", "aimg", "--", "json",
-                "--output", output_path.to_str().unwrap(),
-                "--model", "CSV-Batch",
-                "--version", "1.0","--key", "private.key",])
-        .stdin(std::process::Stdio::piped())
+    let mut child = Command::new("cargo")
+        .args(&[
+            "run", "--bin", "aimf", "--", "raw",
+            "--output", output_path.to_str().unwrap(),
+            "--model", "CSV-Batch",
+            "--version", "1.0",
+            "--type", "image",
+            "--width", &width.to_string(),
+            "--height", &height.to_string(),
+            "--format", "rgb8",
+            "--key", "private.key"
+        ])
+        .stdin(Stdio::piped())
         .spawn()?;
     
     let mut stdin = child.stdin.take().unwrap();
-    stdin.write_all(json_string.as_bytes())?;
+    stdin.write_all(pixels)?;
     drop(stdin);
     
     child.wait()?;
     Ok(output_path)
 }
 
-fn process_video(output_dir: &PathBuf, name: &str, data: &serde_json::Value) -> Result<PathBuf, Box<dyn std::error::Error>> {
+fn process_video_raw(output_dir: &PathBuf, name: &str, width: u32, height: u32, fps: u32, frames: &[Vec<u8>]) -> Result<PathBuf, Box<dyn std::error::Error>> {
     let output_path = output_dir.join(format!("{}.avid", name));
-    let json_string = serde_json::to_string(data)?;
     
-    let mut child = std::process::Command::new("cargo")
-        .args(&["run", "--bin", "avid", "--", "json",
-                "--output", output_path.to_str().unwrap(),
-                "--model", "CSV-Batch",
-                "--version", "1.0","--key", "private.key",])
-        .stdin(std::process::Stdio::piped())
+    // Combine all frames into one binary buffer
+    let mut video_bytes = Vec::new();
+    for frame in frames {
+        video_bytes.extend_from_slice(frame);
+    }
+    
+    let mut child = Command::new("cargo")
+        .args(&[
+            "run", "--bin", "aimf", "--", "raw",
+            "--output", output_path.to_str().unwrap(),
+            "--model", "CSV-Batch",
+            "--version", "1.0",
+            "--type", "video",
+            "--width", &width.to_string(),
+            "--height", &height.to_string(),
+            "--fps", &fps.to_string(),
+            "--frame-count", &frames.len().to_string(),
+            "--key", "private.key"
+        ])
+        .stdin(Stdio::piped())
         .spawn()?;
     
     let mut stdin = child.stdin.take().unwrap();
-    stdin.write_all(json_string.as_bytes())?;
+    stdin.write_all(&video_bytes)?;
     drop(stdin);
     
     child.wait()?;

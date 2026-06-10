@@ -25,11 +25,30 @@ The generic `.aimf` format is **deprecated as of v1.0**. Use format-specific ext
 
 **Migration:**
 ```bash
-# Rename existing .aimf files based on content
-aimf info old.aimf --format json | jq '.media_type'
-# If image: mv old.aimf new.aimg
-# If audio: mv old.aimf new.aaud
-# If video: mv old.aimf new.avid
+# Rename existing .aimf files based on content type
+for file in *.aimf; do
+    if aimf info "$file" --simple| grep -qi "Media Type: image"; then
+        mv "$file" "${file%.aimf}.aimg"
+    elif aimf info "$file" --simple | grep -qi "Media Type: audio"; then
+        mv "$file" "${file%.aimf}.aaud"
+    elif aimf info "$file" --simple | grep -qi "Media Type: video"; then
+        mv "$file" "${file%.aimf}.avid"
+    else
+        echo "Unknown type: $file"
+    fi
+done
+```
+
+Or as a one-liner:
+
+```bash
+for f in *.aimf; do aimf info "$f" --simple | grep -qi "Media Type: image" && mv "$f" "${f%.aimf}.aimg" || aimf info "$f" --simple | grep -qi "Media Type: audio" && mv "$f" "${f%.aimf}.aaud" || aimf info "$f" --simple | grep -qi "Media Type: video" && mv "$f" "${f%.aimf}.avid"; done
+```
+
+Note: This assumes you have jq installed. If not
+# Install jq
+sudo apt install jq      # Ubuntu/Debian
+brew install jq          # macOS
 
 Legacy Format (for reference only)
 

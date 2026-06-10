@@ -50,10 +50,6 @@
 
 **Integrity** — Assurance that file hasn't been modified (provided by hash).
 
-## J
-
-**JSON ingestion** — Creating AIMF files from JSON descriptions of media.
-
 ## K
 
 **Key pair** — Private key (signing) + public key (verification).

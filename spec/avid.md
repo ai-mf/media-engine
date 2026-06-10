@@ -3,7 +3,7 @@
 **Version:** 1.0  
 **Extension:** `.avid`  
 **Container:** MP4 (ISO/IEC 14496-12)  
-**MIME Type:** `video/avid` (proposed)  
+**MIME Type:** `video/prs.avid` (proposed)  
 **Status:** ✅ Stable
 
 ## Overview
@@ -21,115 +21,126 @@ AVID (AI Video) embeds AI provenance metadata into standard MP4 files while main
 ## Format Structure
 
 MP4 files use the ISO Base Media File Format (ISOBMFF) with a box-based structure:
+
+```
 MP4 File:
 ┌─────────────────────────────────────────────────────────────┐
-│ ftyp box (file type and compatibility) │
+│ ftyp box (file type and compatibility)                      │
 ├─────────────────────────────────────────────────────────────┤
-│ moov box (metadata) │
-│ ├── mvhd (movie header) │
-│ ├── trak (video track) │
-│ ├── trak (audio track) │
-│ └── uuid (custom data) ← NEW │
+│ moov box (metadata)                                         │
+│ ├── mvhd (movie header)                                     │
+│ ├── trak (video track)                                      │
+│ └── trak (audio track)                                      │
 ├─────────────────────────────────────────────────────────────┤
-│ mdat box (media data) │
-│ ├── video frames │
-│ └── audio samples │
+│ uuid box ← NEW (appended AFTER moov)                        │
+│   (AVID metadata)                                           │
+├─────────────────────────────────────────────────────────────┤
+│ mdat box (media data)                                       │
+│ ├── video frames                                            │
+│ └── audio samples                                           │
 └─────────────────────────────────────────────────────────────┘
-text
+```
 
+### UUID Box Definition (Actual Implementation)
 
-### UUID Box Definition
+AVID uses a **UUID box** (type `uuid`) with a **fixed UUID**:
 
-AVID uses a **UUID box** (type `uuid`) with a registered UUID:
-
+```
 UUID Box Structure:
-┌──────────────┬──────────────┬──────────────────────────────────┐
-│ Size (4) │ Type 'uuid' (4) │
-├──────────────┴──────────────┴──────────────────────────────────┤
-│ UUID (16 bytes): A1B2C3D4-E5F6-4789-AB12-CD34EF567890 │
-├─────────────────────────────────────────────────────────────────┤
-│ Data (Size-24 bytes): CBOR-serialized AiContainer │
-└─────────────────────────────────────────────────────────────────┘
-text
+┌──────────────┬──────────────┬──────────────────────────────────────────┐
+│ Size (4)     │ Type 'uuid' (4)                                         │
+├──────────────┴──────────────┴──────────────────────────────────────────┤
+│ UUID (16 bytes): 61 76 69 64 2D 6D 65 74 61 2D 62 6F 78 00 00 00       │
+├─────────────────────────────────────────────────────────────────────────┤
+│ Data (Size-24 bytes): CBOR-serialized AiContainer                       │
+└─────────────────────────────────────────────────────────────────────────┘
+```
 
+### UUID Value (Actual)
 
-### UUID Value
+```
+ASCII: "avid-meta-box\0\0\0"
+Hex:   61 76 69 64 2D 6D 65 74 61 2D 62 6F 78 00 00 00
+```
 
-A1B2C3D4-E5F6-4789-AB12-CD34EF567890
-text
+**Not a random UUID** — it's a fixed ASCII-based identifier for easy debugging and consistency.
 
+### Box Location (Actual Implementation)
 
-This UUID is registered for private use. To avoid conflicts, it SHOULD be generated from your domain name:
+Unlike the specification's recommendation, AVID places the UUID box **AFTER the moov box** (not inside it):
 
-```python
-import uuid
+```
+Actual AVID Structure:
+┌──────────────────────────────────────┐
+│ ftyp box                             │
+├──────────────────────────────────────┤
+│ moov box (unchanged)                 │
+├──────────────────────────────────────┤
+│ uuid box ← NEW (after moov)          │
+├──────────────────────────────────────┤
+│ mdat box                             │
+└──────────────────────────────────────┘
+```
 
-# Generate from domain (example)
-namespace = uuid.NAMESPACE_DNS
-name = 'com.aimf.avid'
-avid_uuid = uuid.uuid5(namespace, name)
-# Result: a1b2c3d4-e5f6-4789-ab12-cd34ef567890
+**Why after moov?**
+- Simpler implementation (no need to parse/rebuild moov)
+- Works with existing moov structure
+- Players ignore unknown boxes anywhere in the file
+- Easy to strip for extraction
 
-Box Location
+## Magic Bytes Detection
 
-The UUID box SHOULD be placed in the moov box (movie metadata) for quick access:
-text
+### MP4 Signature (all MP4 files)
 
-moov box
-├── mvhd
-├── trak (video)
-├── trak (audio)
-├── udta (user data)
-└── uuid (AVID) ← NEW
+| Offset | Bytes (hex) | ASCII |
+|--------|-------------|-------|
+| 4 | `66 74 79 70` | `ftyp` |
 
-Why in moov?
+### AVID Marker
 
-    Players read moov first (before mdat)
+The AVID marker appears as a UUID box with the fixed UUID:
 
-    Enables metadata access without loading video data
+```
+UUID box found → UUID == "avid-meta-box\0\0\0" → this is an AVID file
+```
 
-    Streaming servers can extract metadata from header
+**Detection code (from actual implementation):**
 
-    Fast verification without downloading entire file
+```rust
+const AVID_UUID: [u8; 16] = [
+    0x61, 0x76, 0x69, 0x64, 0x2d, 0x6d, 0x65, 0x74,
+    0x61, 0x2d, 0x62, 0x6f, 0x78, 0x00, 0x00, 0x00
+];
 
-Magic Bytes Detection
-MP4 Signature (all MP4 files)
-Offset	Bytes (hex)	ASCII
-4	66 74 79 70	ftyp
-AVID Marker
-
-The AVID marker appears as a UUID box with the registered UUID:
-text
-
-UUID box found → UUID == AVID_UUID → this is an AVID file
-
-Detection code:
-python
-
-def is_avid(data):
-    # Find ftyp box
-    if data[4:8] != b'ftyp':
-        return False
+pub fn extract_avid_from_mp4(mp4_data: &[u8]) -> Result<AiContainer, VideoCodecError> {
+    let mut pos = 0;
     
-    # Parse boxes
-    pos = 0
-    while pos < len(data):
-        box_size = int.from_bytes(data[pos:pos+4], 'big')
-        box_type = data[pos+4:pos+8]
+    while pos + 8 <= mp4_data.len() {
+        let box_size = u32::from_be_bytes(mp4_data[pos..pos+4].try_into().unwrap()) as usize;
+        let box_type = &mp4_data[pos+4..pos+8];
         
-        if box_type == b'uuid' and box_size >= 24:
-            box_uuid = data[pos+8:pos+24]
-            if box_uuid == avid_uuid:
-                return True
+        if box_type == b"uuid" && pos + 24 <= mp4_data.len() {
+            let box_uuid = &mp4_data[pos+8..pos+24];
+            
+            if box_uuid == AVID_UUID {
+                let container_bytes = &mp4_data[pos+24..pos+box_size];
+                return Ok(AiContainer::deserialize(container_bytes)?);
+            }
+        }
         
-        pos += box_size
+        pos += box_size;
+        if box_size == 0 { break; }
+    }
     
-    return False
+    Err(VideoCodecError::NoAvidMetadata)
+}
+```
 
-Serialization Format
-Step 1: Create AiContainer
-rust
+## Serialization Format
 
+### Step 1: Create AiContainer
+
+```rust
 let container = AiContainer {
     media_type: MediaType::Video,  // 2
     encoding: "mp4".to_string(),
@@ -148,81 +159,154 @@ let container = AiContainer {
     payload: original_mp4_data,  // Original MP4 bytes
     hash: compute_hash(),
 };
+```
 
-Step 2: Serialize to CBOR
-rust
+### Step 2: Serialize to CBOR
 
+```rust
 let cbor_bytes = cbor::to_vec(&container);
 // Size: typically 200-500 bytes + metadata
+```
 
-Step 3: Create UUID box
-text
+### Step 3: Create UUID box
 
-UUID Box:
-  Size:   24 + len(cbor_bytes)
-  Type:   'uuid'
-  UUID:   A1B2C3D4-E5F6-4789-AB12-CD34EF567890
-  Data:   cbor_bytes
+```rust
+fn build_uuid_box(data: &[u8]) -> Vec<u8> {
+    let mut uuid_box = Vec::new();
+    let total_size = 8 + 16 + data.len(); // header(8) + UUID(16) + data
+    
+    uuid_box.extend_from_slice(&(total_size as u32).to_be_bytes());
+    uuid_box.extend_from_slice(b"uuid");
+    uuid_box.extend_from_slice(&AVID_UUID);
+    uuid_box.extend_from_slice(data);
+    
+    uuid_box
+}
+```
 
-Step 4: Insert into moov box
+### Step 4: Insert after moov box
 
-The UUID box is added as a child of the moov box. If moov doesn't exist (non-streaming file), it should be created.
-Streaming Support
+```rust
+fn embed_avid_fresh(mp4_data: &[u8], container: &AiContainer) -> Result<Vec<u8>, VideoCodecError> {
+    let container_bytes = container.serialize()?;
+    let uuid_box = build_uuid_box(&container_bytes);
+    
+    let moov_pos = find_box(mp4_data, b"moov").ok_or(VideoCodecError::NoMoovBox)?;
+    let moov_end = moov_pos + get_box_size(mp4_data, moov_pos);
+    
+    let mut output = Vec::new();
+    output.extend_from_slice(&mp4_data[..moov_end]);
+    output.extend_from_slice(&uuid_box);
+    output.extend_from_slice(&mp4_data[moov_end..]);
+    
+    Ok(output)
+}
+```
 
-AVID supports fast start (moov before mdat) for streaming:
-Standard MP4 (not streaming)
-text
+### Step 5: Replace existing metadata
 
-ftyp | mdat | moov  ← moov at end (bad for streaming)
+If AVID metadata already exists, it's removed and re-added:
 
-Fast Start MP4 (streaming)
-text
+```rust
+pub fn replace_avid_in_mp4(mp4_data: &[u8], new_container: &AiContainer) -> Result<Vec<u8>, VideoCodecError> {
+    let new_container_bytes = new_container.serialize()?;
+    let moov_pos = find_box(mp4_data, b"moov").ok_or(VideoCodecError::NoMoovBox)?;
+    let moov_end = moov_pos + get_box_size(mp4_data, moov_pos);
+    
+    let mut result = Vec::new();
+    result.extend_from_slice(&mp4_data[..moov_pos]);
+    
+    // Rebuild moov without old AVID box
+    let mut pos = moov_pos;
+    while pos < moov_end {
+        let box_size = get_box_size(mp4_data, pos);
+        let box_type = &mp4_data[pos+4..pos+8];
+        
+        let is_avid = if box_type == b"uuid" && pos + 24 <= mp4_data.len() {
+            &mp4_data[pos+8..pos+24] == AVID_UUID
+        } else {
+            false
+        };
+        
+        if !is_avid {
+            result.extend_from_slice(&mp4_data[pos..pos + box_size]);
+        }
+        
+        pos += box_size;
+    }
+    
+    result.extend_from_slice(&new_uuid_box);
+    result.extend_from_slice(&mp4_data[moov_end..]);
+    
+    Ok(result)
+}
+```
 
-ftyp | moov | mdat  ← moov at beginning (good for streaming)
+## Extraction Process
 
-AVID preserves the existing structure but adds UUID box to moov.
-Streaming Server Behavior
-text
+1. Parse MP4 boxes sequentially
+2. Find `uuid` box with matching `AVID_UUID`
+3. Read CBOR bytes directly (starting at offset 24)
+4. CBOR deserialize to AiContainer
+5. Verify hash (optional)
+6. Verify signature (optional)
 
-Client Request → GET /video.avid
-Server Response:
-  HTTP 206 Partial Content
-  Content-Type: video/avid
-  
-  First few KB contain moov (includes AVID metadata)
-  → Client can verify authenticity before downloading video
+## Original MP4 Extraction
 
-Extraction Process
+To recover the original MP4 without AVID metadata:
 
-    Parse MP4 boxes
+```rust
+pub fn extract_original_mp4(mp4_data: &[u8]) -> Result<Vec<u8>, VideoCodecError> {
+    let moov_pos = find_box(mp4_data, b"moov").ok_or(VideoCodecError::NoMoovBox)?;
+    let moov_end = moov_pos + get_box_size(mp4_data, moov_pos);
+    
+    let mut result = Vec::new();
+    result.extend_from_slice(&mp4_data[..moov_pos]);
+    
+    let mut pos = moov_pos;
+    while pos < moov_end {
+        let box_size = get_box_size(mp4_data, pos);
+        let box_type = &mp4_data[pos+4..pos+8];
+        
+        let is_avid = if box_type == b"uuid" && pos + 24 <= mp4_data.len() {
+            &mp4_data[pos+8..pos+24] == AVID_UUID
+        } else {
+            false
+        };
+        
+        if !is_avid {
+            result.extend_from_slice(&mp4_data[pos..pos + box_size]);
+        }
+        
+        pos += box_size;
+    }
+    
+    result.extend_from_slice(&mp4_data[moov_end..]);
+    Ok(result)
+}
+```
 
-    Find uuid box with AVID UUID
+## Compatibility Matrix
 
-    Read CBOR bytes directly
+| Software | Can open? | Plays video? | Shows metadata? |
+|----------|-----------|--------------|-----------------|
+| VLC | ✅ | ✅ | ❌ |
+| YouTube | ✅ | ✅ | ❌ |
+| Chrome (HTML5) | ✅ | ✅ | ❌ |
+| Safari | ✅ | ✅ | ❌ |
+| Firefox | ✅ | ✅ | ❌ |
+| QuickTime | ✅ | ✅ | ❌ |
+| ffplay | ✅ | ✅ | ❌ |
+| Adobe Premiere | ✅ | ✅ | ❌ |
+| AIMF tools | ✅ | ✅ | ✅ |
 
-    CBOR deserialize to AiContainer
+## Security Considerations
 
-    Verify hash (optional)
+### Box Parsing Safety
 
-    Verify signature (optional)
+Always validate box sizes:
 
-Compatibility Matrix
-Software	Can open?	Plays video?	Shows metadata?
-VLC	✅	✅	❌
-YouTube	✅	✅	❌
-Chrome (HTML5)	✅	✅	❌
-Safari	✅	✅	❌
-Firefox	✅	✅	❌
-QuickTime	✅	✅	❌
-ffplay	✅	✅	❌
-Adobe Premiere	✅	✅	❌
-AIMF tools	✅	✅	✅
-Security Considerations
-Box Parsing Safety
-
-MP4 boxes can be nested. Always validate sizes:
-rust
-
+```rust
 // DO: Check for infinite loops
 let mut pos = 0;
 let mut boxes_processed = 0;
@@ -231,44 +315,46 @@ while pos < data.len() && boxes_processed < MAX_BOXES {
     if size == 0 || size > data.len() - pos {
         return Err("Invalid box size");
     }
-    // Process box
     pos += size;
     boxes_processed += 1;
 }
 
-// DO: Validate UUID
-if uuid == AVID_UUID {
-    // Process metadata
+// DO: Validate UUID before processing
+if box_uuid == AVID_UUID {
+    // Process metadata safely
 }
+```
 
-// DON'T: Trust unsigned sizes
-let size = unsafe { *(data[pos..pos+4].as_ptr() as *const u32) };
+### Hash Verification
 
-Hash Verification
-rust
-
+```rust
 let computed_hash = sha256(&payload + &serialized_metadata);
 if computed_hash != container.hash {
     return Err("Video integrity check failed");
 }
+```
 
-Codec Compatibility
+## Codec Compatibility
 
 AVID works with any MP4 codec:
-Codec	Support	Notes
-H.264 (AVC)	✅ Full	Most compatible
-H.265 (HEVC)	✅ Full	Better compression
-AV1	✅ Full	Royalty-free
-VP9	✅ Full	YouTube standard
-AAC	✅ Full	Audio
-MP3	✅ Full	Audio
-Opus	✅ Full	Modern audio
 
-AVID does NOT re-encode video; it preserves original codec.
-Example: Minimal MP4 with AVID
-Box structure
-text
+| Codec | Support | Notes |
+|-------|---------|-------|
+| H.264 (AVC) | ✅ Full | Most compatible |
+| H.265 (HEVC) | ✅ Full | Better compression |
+| AV1 | ✅ Full | Royalty-free |
+| VP9 | ✅ Full | YouTube standard |
+| AAC | ✅ Full | Audio |
+| MP3 | ✅ Full | Audio |
+| Opus | ✅ Full | Modern audio |
 
+**Note:** AVID does NOT re-encode video; it preserves original codec.
+
+## Example: Minimal MP4 with AVID
+
+### Box structure
+
+```
 [ftyp] size=24
   brand=mp42
   minor=0
@@ -277,66 +363,78 @@ text
   [mvhd] size=108
     creation_time=...
     duration=...
-  
   [trak] size=800
     [tkhd] size=92
     [mdia] ...
-  
-  [uuid] size=256 ← AVID metadata
-    uuid=A1B2C3D4-E5F6-4789-AB12-CD34EF567890
-    data=[CBOR...]
+
+[uuid] size=256 ← AVID metadata (after moov)
+  uuid=61 76 69 64 2D 6D 65 74 61 2D 62 6F 78 00 00 00
+  data=[CBOR...]
 
 [mdat] size=1048576
   [video frames...]
   [audio samples...]
+```
 
-File Size Overhead
+## File Size Overhead
 
-Original MP4	Metadata	AVID Size	Overhead
-1 MB	200 B	1.00 MB	0.02%
-10 MB	200 B	10.00 MB	0.002%
-1 GB	500 B	1.00 GB	0.00005%
+| Original MP4 | Metadata | AVID Size | Overhead |
+|--------------|----------|-----------|----------|
+| 1 MB | 200 B | 1.00 MB | 0.02% |
+| 10 MB | 200 B | 10.00 MB | 0.002% |
+| 1 GB | 500 B | 1.00 GB | 0.00005% |
 
-Testing Vectors
-Test AVID File Generation
-bash
+## Testing Vectors
 
-# Create test AVID
-echo '{"width":1920,"height":1080,"fps":30,"frames":[[255,0,0]]}' | \
-  cargo run --bin aimf -- ingest --type video --output test.avid --model test --version 1.0
+### Create Test AVID
+
+```bash
+# Generate raw frames + audio and embed
+cat frames.rgb audio.pcm | cargo run --bin aimf -- raw \
+  --output test.avid \
+  --type video \
+  --width 1920 \
+  --height 1080 \
+  --fps 30 \
+  --frame-count 300 \
+  --sample-rate 48000 \
+  --channels 2 \
+  --model "Sora" \
+  --version "1.0"
 
 # Verify structure
 MP4Box -info test.avid
 
 # Extract metadata
 cargo run --bin aimf -- info test.avid
+```
 
-Expected Output
-text
+### Expected Output
 
+```
 File: test.avid
 Format: AVID (AI Video)
 Container: MP4
-Model: test v1.0
+Model: Sora v1.0
 Resolution: 1920x1080
 FPS: 30
-Duration: 0.033 sec
-Codec: H.264 (assumed)
-Timestamp: 1705315200
+Duration: 10.000 sec
+Codec: H.264
+Timestamp: 2024-01-15 12:00:00 UTC
 Hash: 5e884898da28047151d0e56f8dc6292773603d0d6aabbdd62a11ef721d1542d8
 Signature: Not signed
 Valid: ✅ Yes
+```
 
-References
+## References
 
-    ISO/IEC 14496-12 (ISOBMFF)
+- [ISO/IEC 14496-12 (ISOBMFF)](https://www.iso.org/standard/83102.html)
+- [MP4 Registration Authority](https://mp4ra.org/)
+- [CBOR Specification (RFC 8949)](https://datatracker.ietf.org/doc/html/rfc8949)
 
-    MP4 Registration Authority
+## Changelog
 
-    UUID Specification (RFC 4122)
-
-    CBOR Specification (RFC 8949)
-
-Changelog
-Version	Date	Changes
-1.0	2026-01-15	Initial specification
+| Version | Date | Changes |
+|---------|------|---------|
+| 1.0 | 2026-01-15 | Initial specification (UUID box after moov, fixed ASCII UUID `avid-meta-box\0\0\0`) |
+```

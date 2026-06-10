@@ -6,7 +6,7 @@ use anyhow::{Context, Result};
 use rayon::prelude::*;
 use std::path::PathBuf;
 use async_trait::async_trait;
-
+use aimf_core::{debug_print};
 
 pub struct BatchCommand;
 
@@ -31,10 +31,10 @@ impl CommandExecutor for BatchCommand {
             .context("Failed to create output directory")?;
 
         if args.dry_run {
-            println!("\n📋 Dry Run - Would process {} files:", files.len());
+            debug_print!("\n📋 Dry Run - Would process {} files:", files.len());
             for (i, file) in files.iter().enumerate() {
                 let output = get_output_path(file, &args.output_dir);
-                println!("  {}. {} → {}", i + 1, file.display(), output.display());
+                debug_print!("  {}. {} → {}", i + 1, file.display(), output.display());
             }
             progress.finish_with_message("Dry run complete");
             return Ok(());
@@ -234,32 +234,32 @@ fn print_batch_summary(results: &[BatchResult], _args: &BatchArgs) {
     let total_size_before: u64 = successful.iter().map(|r| r.size_before).sum();
     let total_size_after: u64 = successful.iter().map(|r| r.size_after).sum();
     
-    println!("\n📊 Batch Processing Summary");
-    println!("═══════════════════════════════════════");
-    println!("Total files: {}", results.len());
-    println!("✅ Successful: {}", successful.len());
-    println!("❌ Failed: {}", failed.len());
+    debug_print!("\n📊 Batch Processing Summary");
+    debug_print!("═══════════════════════════════════════");
+    debug_print!("Total files: {}", results.len());
+    debug_print!("✅ Successful: {}", successful.len());
+    debug_print!("❌ Failed: {}", failed.len());
     
     if !successful.is_empty() {
-        println!("\n📦 Total size: {} → {}", 
+        debug_print!("\n📦 Total size: {} → {}", 
             human_bytes(total_size_before as usize),
             human_bytes(total_size_after as usize));
         if total_size_before > 0 {
             let change = ((total_size_after as f64 / total_size_before as f64) - 1.0) * 100.0;
-            println!("   Change: {:.1}%", change);
+            debug_print!("   Change: {:.1}%", change);
         }
     }
     
     if !failed.is_empty() {
-        println!("\n⚠️  Failed files:");
+        debug_print!("\n⚠️  Failed files:");
         for result in failed {
-            println!("   {}: {}", 
+            debug_print!("   {}: {}", 
                 result.file.display(),
                 result.error.as_deref().unwrap_or("Unknown error"));
         }
     }
     
-    println!("═══════════════════════════════════════\n");
+    debug_print!("═══════════════════════════════════════\n");
 }
 
 fn human_bytes(bytes: usize) -> String {

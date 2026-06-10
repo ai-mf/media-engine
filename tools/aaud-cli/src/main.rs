@@ -1,9 +1,10 @@
+//media-engine/tools/aaud-cli/src/main.rs
 use clap::{Parser, Subcommand};
+use std::path::PathBuf;
 use media_engine_commands::{
     common::*,
     create::CreateCommand,
     raw::RawCreateCommand,
-    json_input::JsonCreateCommand,
     info::InfoCommand,
     verify::VerifyCommand,
     extract::ExtractCommand,
@@ -14,6 +15,7 @@ use media_engine_commands::{
 };
 use media_engine_commands::CommandExecutor;
 use cli_common::audio_context;
+use aimf_core::debug_print;
 
 #[derive(Parser)]
 #[command(
@@ -32,7 +34,6 @@ struct Cli {
 enum Commands {
     #[command(visible_alias = "c")] Create(CreateArgs),
     #[command(visible_alias = "r")] Raw(RawCreateArgs),
-    #[command(visible_alias = "j")] Json(JsonCreateArgs),
     #[command(visible_alias = "i")] Info(InfoArgs),
     #[command(visible_alias = "v")] Verify(VerifyArgs),
     #[command(visible_alias = "e")] Extract(ExtractArgs),
@@ -45,18 +46,75 @@ enum Commands {
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     let cli = Cli::parse();
-    let ctx = audio_context(cli.verbose, !cli.no_progress, cli.c2pa);
 
     match cli.command {
-        Commands::Create(args) => CreateCommand::execute(args, &ctx).await,
-        Commands::Raw(args) => RawCreateCommand::execute(args, &ctx).await,
-        Commands::Json(args) => JsonCreateCommand::execute(args, &ctx).await,
-        Commands::Info(args) => InfoCommand::execute(args, &ctx).await,
-        Commands::Verify(args) => VerifyCommand::execute(args, &ctx).await,
-        Commands::Extract(args) => ExtractCommand::execute(args, &ctx).await,
-        Commands::View(args) => ViewCommand::execute(args, &ctx).await,
-        Commands::Sign(args) => SignCommand::execute(args, &ctx).await,
-        Commands::Batch(args) => BatchCommand::execute(args, &ctx).await,
-        Commands::GenKey(args) => GenKeyCommand::execute(args, &ctx).await,
+        Commands::Create(mut args) => {
+            args.output = enforce_audio_output(args.output);
+            let ctx = audio_context(cli.verbose, !cli.no_progress, cli.c2pa);
+            CreateCommand::execute(args, &ctx).await
+        }
+        Commands::Raw(mut args) => {
+            args.common.output = enforce_audio_output(args.common.output);
+            let ctx = audio_context(cli.verbose, !cli.no_progress, cli.c2pa);
+            RawCreateCommand::execute(args, &ctx).await
+        }
+        Commands::Info(args) => {
+            let ctx = audio_context(cli.verbose, !cli.no_progress, cli.c2pa);
+            InfoCommand::execute(args, &ctx).await
+        }
+        Commands::Verify(args) => {
+            let ctx = audio_context(cli.verbose, !cli.no_progress, cli.c2pa);
+            VerifyCommand::execute(args, &ctx).await
+        }
+        Commands::Extract(args) => {
+            let ctx = audio_context(cli.verbose, !cli.no_progress, cli.c2pa);
+            ExtractCommand::execute(args, &ctx).await
+        }
+        Commands::View(args) => {
+            let ctx = audio_context(cli.verbose, !cli.no_progress, cli.c2pa);
+            ViewCommand::execute(args, &ctx).await
+        }
+        Commands::Sign(args) => {
+            let ctx = audio_context(cli.verbose, !cli.no_progress, cli.c2pa);
+            SignCommand::execute(args, &ctx).await
+        }
+        Commands::Batch(args) => {
+            let ctx = audio_context(cli.verbose, !cli.no_progress, cli.c2pa);
+            BatchCommand::execute(args, &ctx).await
+        }
+        Commands::GenKey(args) => {
+            let ctx = audio_context(cli.verbose, !cli.no_progress, cli.c2pa);
+            GenKeyCommand::execute(args, &ctx).await
+        }
+    }
+}
+
+// Similar structure, but with enforce_audio_output()
+fn enforce_audio_output(output: PathBuf) -> PathBuf {
+    let ext = output.extension().and_then(|e| e.to_str());
+    
+    match ext {
+        Some("wav") => {
+            let stem = output.file_stem().unwrap();
+            let new_name = format!("{}.aaud.wav", stem.to_string_lossy());
+            let new_path = output.with_file_name(new_name);
+            debug_print!("📝 Note: Output renamed to '{}' (AIMF audio format)", new_path.display());
+            new_path
+        }
+        Some("aaud") => output,
+        Some(other) => {
+            let stem = output.file_stem().unwrap();
+            let new_name = format!("{}.aaud", stem.to_string_lossy());
+            let new_path = output.with_file_name(new_name);
+            debug_print!("⚠️  Warning: Extension '.{}' is not standard for AIMF audio.", other);
+            debug_print!("📝 Using '{}' instead.", new_path.display());
+            new_path
+        }
+        None => {
+            let new_name = format!("{}.aaud", output.to_string_lossy());
+            let new_path = output.with_file_name(new_name);
+            debug_print!("📝 Note: Added .aaud extension -> '{}'", new_path.display());
+            new_path
+        }
     }
 }

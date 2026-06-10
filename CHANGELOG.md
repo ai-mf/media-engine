@@ -25,7 +25,7 @@ Format based on [Keep a Changelog](https://keepachangelog.com/), versioning foll
 - `aimf`, `aimg`, `aaud`, `avid` CLI tools
 - Ed25519 signing and verification
 - Batch processing (`batch` command)
-- JSON and raw input ingestion
+- Raw input ingestion
 - Examples : Rust ->`ai_generate_video_simple`, `ai_generate_image`, `ai_generate_audio`
 -          : Python ->`audio_generation`, `image_generation`, `video_generation`
 - Documentation: USAGE, BATCH, API, SCHEMA, WORKFLOWS

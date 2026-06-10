@@ -1,4 +1,3 @@
-//media-engine/USAGE.md
 # AIMF - AI Media Format Tool Suite
 
 A complete solution for embedding, verifying, and managing AI-generated content with cryptographic provenance across audio, image, and video formats.
@@ -11,6 +10,7 @@ AIMF provides tools to:
 - **Verify** file integrity and signature validity
 - **Extract** original media from AI containers
 - **View** media files with default system players
+- **Convert** existing MP3/MP4 files to AI formats
 
 ## Architecture
 
@@ -21,8 +21,8 @@ AIMF provides tools to:
 │   aimf       │    aaud      │    aimg      │   avid           │
 │  (Universal) │   (Audio)    │   (Image)    │  (Video)         │
 ├──────────────┼──────────────┼──────────────┼──────────────────┤
-│ Auto-detect  │ AAUD with    │ AIMG with    │ AVID UUID  with  │
-│ any format   │ WAV marker   │ PNG marker   │ MP4              │
+│ Auto-detect  │ AAUD with    │ AIMG with    │ AVID with        │
+│ any format   │ WAV marker   │ PNG marker   │ MP4 marker       │
 └──────────────┴──────────────┴──────────────┴──────────────────┘
 ```
 
@@ -56,17 +56,6 @@ cargo run --bin aaud -- gen-key --output private.key
 #### Audio (AAUD)
 
 ```bash
-# Create from JSON audio description
-echo '{
-  "sample_rate": 44100,
-  "samples": [0.1, -0.2, 0.3, -0.1, 0.4],
-  "channels": 1
-}' | cargo run --bin aaud -- json \
-  --output my_audio.aaud \
-  --model "MusicGen" \
-  --version "2.0" \
-  --key private.key
-
 # Create from raw PCM (16-bit signed, little-endian)
 cat audio.raw | cargo run --bin aaud -- raw \
   --output my_audio.aaud \
@@ -74,23 +63,16 @@ cat audio.raw | cargo run --bin aaud -- raw \
   --channels 2 \
   --model "AudioLDM" \
   --version "1.5"
+
+# Convert MP3 to AAUD (new!)
+cargo run --bin aaud -- convert input.mp3 --output output.aaud \
+  --model "AudioLDM" \
+  --version "1.5"
 ```
 
 #### Image (AIMG)
 
 ```bash
-# Create from JSON image description
-echo '{
-  "width": 1024,
-  "height": 768,
-  "pixels": [255,0,0, 0,255,0, 0,0,255],
-  "format": "rgb8"
-}' | cargo run --bin aimg -- json \
-  --output my_image.aimg \
-  --model "StableDiffusion" \
-  --version "3.0" \
-  --key private.key
-
 # Create from raw RGB data
 cat image.rgb | cargo run --bin aimg -- raw \
   --width 1920 \
@@ -103,28 +85,18 @@ cat image.rgb | cargo run --bin aimg -- raw \
 #### Video (AVID)
 
 ```bash
-# Create from JSON video description
-echo '{
-  "width": 1920,
-  "height": 1080,
-  "fps": 30,
-  "frames": [[255,0,0, 0,255,0], [0,0,255, 255,255,0]],
-  "audio": {
-    "sample_rate": 44100,
-    "samples": [0.1, -0.2, 0.3]
-  }
-}' | cargo run --bin avid -- json \
-  --output my_video.avid \
-  --model "Sora" \
-  --version "1.0" \
-  --key private.key
-
 # Create from raw video frames (RGB24)
-cat video.raw | cargo run --bin avid -- raw \
+cargo run --bin avid -- raw \
   --width 1280 \
   --height 720 \
   --fps 24 \
   --output my_video.avid \
+  --frame-count 240 \
+  --model "Runway" \
+  --version "2.0"
+
+# Convert MP4 to AVID (new!)
+cargo run --bin avid -- convert input.mp4 --output output.avid \
   --model "Runway" \
   --version "2.0"
 ```
@@ -194,10 +166,12 @@ cargo run --bin aimf -- verify my_image.aimg
 cargo run --bin aimf -- extract my_video.avid --output extracted.mp4
 cargo run --bin aimf -- view my_audio.aaud
 
-# Create with explicit type
-echo '{"sample_rate":44100,"samples":[0.1,0.2]}' | \
-  cargo run --bin aimf -- --type audio create \
+# Create from raw data (auto-detects type)
+cargo run --bin aimf -- raw \
   --output universal.aaud \
+  --type audio \
+  --sample-rate 44100 \
+  --channels 1 \
   --model "Universal" \
   --version "1.0"
 ```
@@ -210,10 +184,11 @@ echo '{"sample_rate":44100,"samples":[0.1,0.2]}' | \
 # 1. Generate key
 cargo run --bin aaud -- gen-key --output mykey.key
 
-# 2. Create AI audio with signature
-echo '{"sample_rate": 22050, "samples": [0.5, -0.3, 0.1, -0.2, 0.4]}' | \
-  cargo run --bin aaud -- json \
+# 2. Create AI audio with signature (raw PCM input)
+cat audio.raw | cargo run --bin aaud -- raw \
   --output melody.aaud \
+  --sample-rate 22050 \
+  --channels 1 \
   --model "MusicGen" \
   --version "1.0" \
   --key mykey.key
@@ -229,10 +204,11 @@ cargo run --bin aaud -- view melody.aaud
 ### Example 2: Batch Process Images
 
 ```bash
-# Process all JSON files in directory
-for file in *.json; do
-  cat "$file" | cargo run --bin aimg -- json \
-    --output "${file%.json}.aimg" \
+# Process all RGB files in directory
+for file in *.rgb; do
+  cat "$file" | cargo run --bin aimg -- raw \
+    --width 1920 --height 1080 \
+    --output "${file%.rgb}.aimg" \
     --model "SDXL" \
     --version "1.0"
 done
@@ -244,17 +220,14 @@ cargo run --bin aimg -- batch --input "*.aimg" --verify
 ### Example 3: Video with Audio Track
 
 ```bash
-# Create video with synchronized audio
-echo '{
-  "width": 640,
-  "height": 480,
-  "fps": 25,
-  "frames": [...],
-  "audio": {
-    "sample_rate": 44100,
-    "samples": [...]
-  }
-}' | cargo run --bin avid -- json \
+# Create video with synchronized audio (raw frames + raw audio)
+cat video_frames.rgb audio.raw | cargo run --bin avid -- raw \
+  --width 640 \
+  --height 480 \
+  --fps 25 \
+  --frame-count 250 \
+  --sample-rate 44100 \
+  --channels 1 \
   --output presentation.avid \
   --model "GenVideo" \
   --version "2.0"
@@ -266,8 +239,8 @@ echo '{
 
 | Command | Description |
 |---------|-------------|
-| `json` | Create from JSON audio description |
-| `raw` | Create from raw PCM data |
+| `raw` | Create from raw PCM data (16-bit LE) |
+| `convert` | Convert MP3 to AAUD |
 | `info` | Show audio metadata |
 | `verify` | Check integrity and signature |
 | `extract` | Extract original audio |
@@ -280,7 +253,6 @@ echo '{
 
 | Command | Description |
 |---------|-------------|
-| `json` | Create from JSON image description |
 | `raw` | Create from raw RGB data |
 | `info` | Show image metadata |
 | `verify` | Check integrity and signature |
@@ -294,8 +266,8 @@ echo '{
 
 | Command | Description |
 |---------|-------------|
-| `json` | Create from JSON video description |
-| `raw` | Create from raw RGB frames |
+| `raw` | Create from raw RGB frames + optional raw audio |
+| `convert` | Convert MP4 to AVID |
 | `info` | Show video metadata |
 | `verify` | Check integrity and signature |
 | `extract` | Extract original video |
@@ -308,7 +280,7 @@ echo '{
 
 | Command | Description |
 |---------|-------------|
-| `create` | Auto-detect format and create |
+| `raw` | Create from raw data (auto-detect type) |
 | `info` | Show metadata (any format) |
 | `verify` | Verify (any format) |
 | `extract` | Extract (any format) |
@@ -316,42 +288,24 @@ echo '{
 | `--type` | Specify media type (audio/image/video) |
 | `batch` | Batch process multiple files |
 
-## JSON Input Formats
+## Raw Input Formats
 
-### Audio JSON
-```json
-{
-  "sample_rate": 44100,
-  "channels": 1,
-  "samples": [0.1, -0.2, 0.3, -0.1, 0.4]
-}
+### Audio RAW
+16-bit signed little-endian PCM. Pipe directly:
+```bash
+cat audio.pcm | cargo run --bin aaud -- raw --sample-rate 44100 --channels 1 ...
 ```
 
-### Image JSON
-```json
-{
-  "width": 1024,
-  "height": 768,
-  "format": "rgb8",
-  "pixels": [255, 0, 0, 0, 255, 0, 0, 0, 255]
-}
+### Image RAW
+RGB24 (3 bytes per pixel, R,G,B order). Width and height required:
+```bash
+cat image.rgb | cargo run --bin aimg -- raw --width 1920 --height 1080 ...
 ```
 
-### Video JSON
-```json
-{
-  "width": 1920,
-  "height": 1080,
-  "fps": 30,
-  "frames": [
-    [255,0,0, 0,255,0],
-    [0,0,255, 255,255,0]
-  ],
-  "audio": {
-    "sample_rate": 44100,
-    "samples": [0.1, -0.2, 0.3]
-  }
-}
+### Video RAW
+RGB24 frames concatenated, followed by optional PCM audio. Provide frame count:
+```bash
+cat frames.rgb audio.pcm | cargo run --bin avid -- raw --width 1280 --height 720 --fps 30 --frame-count 300 ...
 ```
 
 ## File Formats
@@ -379,8 +333,8 @@ Ensure the file was created with the appropriate tool (aaud/aimg/avid) and conta
 - File may have been modified after signing
 - Verify the signing key matches
 
-### FFmpeg not found (video)
-Install FFmpeg for video encoding:
+### FFmpeg not found (video conversion)
+Install FFmpeg for MP4 conversion:
 ```bash
 # Ubuntu/Debian
 sudo apt install ffmpeg
@@ -388,11 +342,8 @@ sudo apt install ffmpeg
 # macOS
 brew install ffmpeg
 
-# Windows
-choco install ffmpeg
-
+# Windows (using winget)
 winget install ffmpeg
-
 ```
 
 ## License
@@ -408,6 +359,6 @@ Pull requests welcome! Please ensure:
 
 ## Support
 
-- Documentation: [docs.rs/aimf](https://docs.rs/aimf)
 - Issues: [GitHub Issues](https://github.com/ai-mf/media-engine/issues)
 - Examples: `/examples` directory
+```

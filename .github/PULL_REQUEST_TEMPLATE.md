@@ -39,7 +39,7 @@ Describe how you tested this change:
 ```bash
 # Example commands you ran
 cargo test --test integration_test
-./target/release/aimf info test_file.avid
+./target/release/aimf info test_file.avid --simple
 
 Additional context
 

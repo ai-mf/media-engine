@@ -1,52 +1,3 @@
-from setuptools import setup, find_packages
-from pathlib import Path
-
-# Read README
-readme_path = Path(__file__).parent / "README.md"
-long_description = readme_path.read_text() if readme_path.exists() else ""
-
-setup(
-    name="aimf",
-    version="1.0.0",
-    author="AIMF Team",
-    author_email="aimediaformat@gmail.com",
-    description="AI Media Format - Python wrapper for authenticating AI-generated audio, images, and video",
-    long_description=long_description,
-    long_description_content_type="text/markdown",
-    url="https://github.com/ai-mf/media-engine",
-    project_urls={
-        "Bug Reports": "https://github.com/ai-mf/media-engine/issues",
-        "Source": "https://github.com/ai-mf/media-engine",
-        "Documentation": "https://github.com/ai-mf/media-engine",
-    },
-    packages=find_packages(),
-    classifiers=[
-        "Development Status :: 4 - Beta",
-        "Intended Audience :: Developers",
-        "Topic :: Multimedia :: Sound/Audio",
-        "Topic :: Multimedia :: Graphics",
-        "Topic :: Multimedia :: Video",
-        "License :: OSI Approved :: Apache Software License",
-        "Programming Language :: Python :: 3",
-        "Programming Language :: Python :: 3.7",
-        "Programming Language :: Python :: 3.8",
-        "Programming Language :: Python :: 3.9",
-        "Programming Language :: Python :: 3.10",
-        "Programming Language :: Python :: 3.11",
-        "Programming Language :: Python :: 3.12",
-    ],
-    python_requires=">=3.7",
-    install_requires=[],  # No Python dependencies - just calls the binary
-    entry_points={
-        "console_scripts": [
-            "aimf=aimf.__main__:main",
-        ],
-    },
-    include_package_data=True,
-    zip_safe=False,
-)
-
-
 from setuptools import setup
 from setuptools.command.install import install
 import subprocess
@@ -57,6 +8,10 @@ import tarfile
 import zipfile
 import os
 from pathlib import Path
+
+# Read README
+readme_path = Path(__file__).parent / "README.md"
+long_description = readme_path.read_text() if readme_path.exists() else ""
 
 class DownloadBinary(install):
     """Custom install command to download AIMF binary"""
@@ -147,7 +102,7 @@ setup(
     version="1.0.0",
     author="AIMF Contributors",
     author_email="aimediaformat@gmail.com",
-    description="AI Media Format - Python wrapper bundled binary for authenticating AI-generated audio, images, and video",
+    description="AI Media Format - Python wrapper for authenticating AI-generated audio, images, and video",
     long_description=long_description,
     long_description_content_type="text/markdown",
     url="https://github.com/ai-mf/media-engine",
@@ -173,7 +128,7 @@ setup(
         "Programming Language :: Python :: 3.12",
     ],
     python_requires=">=3.7",
-    install_requires=[],  # No Python dependencies - just calls the binary
+    install_requires=[],
     cmdclass={'install': DownloadBinary},
     entry_points={
         "console_scripts": [
@@ -183,4 +138,3 @@ setup(
     include_package_data=True,
     zip_safe=False,
 )
-

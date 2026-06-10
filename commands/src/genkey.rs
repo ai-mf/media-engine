@@ -6,6 +6,7 @@ use anyhow::{Context, Result};
 use ed25519_dalek::SigningKey;
 use rand::rngs::OsRng;
 use async_trait::async_trait;
+use aimf_core::debug_print;
 
 pub struct GenKeyCommand;
 
@@ -52,23 +53,23 @@ impl CommandExecutor for GenKeyCommand {
         }
 
         // Print key information
-        println!("\n🔑 Key Generation Summary");
-        println!("═══════════════════════════════════════");
-        println!("Algorithm: Ed25519");
-        println!("Private Key: {}", args.output.display());
-        println!("Public Key: {}...", hex::encode(&verifying_key.to_bytes()[..8]));
-        println!("\n📝 Usage:");
-        println!("   Sign a file:");
-        println!("     tool sign --input file.aaud --key {} --output signed.aaud", 
+        debug_print!("\n🔑 Key Generation Summary");
+        debug_print!("═══════════════════════════════════════");
+        debug_print!("Algorithm: Ed25519");
+        debug_print!("Private Key: {}", args.output.display());
+        debug_print!("Public Key: {}...", hex::encode(&verifying_key.to_bytes()[..8]));
+        debug_print!("\n📝 Usage:");
+        debug_print!("   Sign a file:");
+        debug_print!("     tool sign --input file.aaud --key {} --output signed.aaud", 
             args.output.display());
-        println!("\n   Verify with public key:");
-        println!("     tool verify file.aaud --public-key <public-key-file>");
-        println!("\n⚠️  IMPORTANT:");
-        println!("   • Keep your private key SECURE and NEVER share it");
-        println!("   • The public key can be freely distributed");
-        println!("   • Without the private key, you cannot prove authorship");
-        println!("   • Consider backing up your private key securely");
-        println!("═══════════════════════════════════════\n");
+        debug_print!("\n   Verify with public key:");
+        debug_print!("     tool verify file.aaud --public-key <public-key-file>");
+        debug_print!("\n⚠️  IMPORTANT:");
+        debug_print!("   • Keep your private key SECURE and NEVER share it");
+        debug_print!("   • The public key can be freely distributed");
+        debug_print!("   • Without the private key, you cannot prove authorship");
+        debug_print!("   • Consider backing up your private key securely");
+        debug_print!("═══════════════════════════════════════\n");
 
         Ok(())
     }

@@ -4,7 +4,7 @@ use crate::common::*;
 use crate::utils::ProgressTracker;
 use anyhow::{Context, Result};
 use ed25519_dalek::SigningKey;
-use aimf_core::{AiContainer};
+use aimf_core::{AiContainer, debug_print};
 use async_trait::async_trait;
 
 pub struct SignCommand;
@@ -66,14 +66,14 @@ impl CommandExecutor for SignCommand {
         let pub_key = signing_key.verifying_key();
         progress.finish_with_message(&format!("✅ Signed: {}", args.output.display()));
         
-        println!("\n🔐 Signing Summary:");
-        println!("   Input: {}", args.input.display());
-        println!("   Output: {}", args.output.display());
-        println!("   Public Key: {}...", hex::encode(&pub_key.to_bytes()[..8]));
-        println!("   Signature: {}...", 
+        debug_print!("\n🔐 Signing Summary:");
+        debug_print!("   Input: {}", args.input.display());
+        debug_print!("   Output: {}", args.output.display());
+        debug_print!("   Public Key: {}...", hex::encode(&pub_key.to_bytes()[..8]));
+        debug_print!("   Signature: {}...", 
             hex::encode(&container.metadata.signature.as_ref().unwrap()[..8]));
-        println!("\n   Verify with:");
-        println!("   {} verify {} --public-key <public-key-file>", 
+        debug_print!("\n   Verify with:");
+        debug_print!("   {} verify {} --public-key <public-key-file>", 
             std::env::current_exe().unwrap().file_name().unwrap().to_string_lossy(),
             args.output.display());
 
@@ -98,11 +98,11 @@ fn determine_and_embed(
 
     if is_png || is_wav || is_mp4 {
         // Re-embed in the same format
-        println!("   Preserving original media format");
+        debug_print!("   Preserving original media format");
         (ctx.embed_function)(&original_data, container)
     } else {
         // Just serialize the container
-        println!("   Saving as pure AI container");
+        debug_print!("   Saving as pure AI container");
         container.serialize().map_err(|e| anyhow::anyhow!(e.to_string()))//Convert CoreError to Error
     }
 }

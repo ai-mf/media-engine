@@ -21,17 +21,18 @@ AAUD (AI Audio) embeds AI provenance metadata into standard WAV files while main
 ## Format Structure
 
 A WAV file uses the RIFF (Resource Interchange File Format) container:
+
+```
 RIFF Header (12 bytes):
 ┌──────────────┬──────────────┬──────────────┐
-│ 'RIFF' (4) │ Size (4) │ 'WAVE' (4) │
+│ 'RIFF' (4)   │ Size (4)     │ 'WAVE' (4)   │
 └──────────────┴──────────────┴──────────────┘
 
 Chunks (repeated):
 ┌──────────────┬──────────────┬──────────────┐
-│ ID (4) │ Size (4) │ Data (Size) │
+│ ID (4)       │ Size (4)     │ Data (Size)  │
 └──────────────┴──────────────┴──────────────┘
-text
-
+```
 
 ### Required Chunks (all WAV files)
 
@@ -40,40 +41,34 @@ text
 | `fmt ` | Format information | ✅ Yes |
 | `data` | Audio samples | ✅ Yes |
 
-### AAUD Chunk
+### AAUD Chunk (Implementation)
 
-AAUD adds a **LIST chunk** of type `"AAUD"`:
+**Unlike traditional WAV metadata that uses LIST chunks, AAUD uses a simple custom chunk appended at the end of the file:**
 
-LIST Chunk Structure:
-┌──────────────┬──────────────┬──────────────────────────────────┐
-│ 'LIST' (4) │ Size (4) │ 'AAUD' (4) + Data (Size-4) │
-└──────────────┴──────────────┴──────────────────────────────────┘
+```
+AAUD Chunk Structure:
+┌──────────────┬──────────────┬──────────────────────────┐
+│ 'AAUD' (4)   │ Size (4)     │ CBOR-serialized AiContainer │
+└──────────────┴──────────────┴──────────────────────────┘
+```
 
-Data format:
-┌──────────────┬──────────────────────────────────────────────────┐
-│ 'AAUD' (4) │ CBOR-serialized AiContainer (Size-4 bytes) │
-└──────────────┴──────────────────────────────────────────────────┘
-text
+### Chunk Location (Actual Implementation)
 
+The AAUD chunk is **appended after all existing chunks**, and the RIFF header size is updated:
 
-### Chunk Location
-
-The AAUD LIST chunk SHOULD be placed **after `fmt `** and **before `data`**:
-
+```
 RIFF Header
 ├── fmt chunk (audio format)
-├── LIST chunk (type="AAUD") ← NEW
-├── LIST chunk (type="INFO") (optional, existing)
 ├── data chunk (audio samples)
-└── ... other chunks
-text
+├── ... any other existing chunks
+└── AAUD chunk ← APPENDED AT END (not before data)
+```
 
-
-### Why Before Data?
-
-- Allows players to read metadata without loading audio
-- Enables quick verification without decoding samples
-- Preserves compatibility (unknown chunks are ignored)
+**Why appended?**
+- Simpler implementation (no chunk parsing/reordering)
+- Works with all WAV files regardless of structure
+- Unknown chunks are ignored by players
+- RIFF header size update ensures players skip it
 
 ## Magic Bytes Detection
 
@@ -86,43 +81,44 @@ text
 
 ### AAUD Marker
 
-The AAUD marker appears in a LIST chunk:
+The AAUD marker appears as a chunk ID:
 
-LIST chunk found → chunk type == "AAUD" → this is an AAUD file
-text
+```
+Found chunk with ID 'AAUD' → this is an AAUD file
+```
 
+**Detection code (from actual implementation):**
 
-**Detection code:**
-
-```python
-def is_aaud(data):
-    # Check RIFF header
-    if data[0:4] != b'RIFF' or data[8:12] != b'WAVE':
-        return False
+```rust
+fn extract_aaud_from_wav(wav_data: &[u8]) -> Result<AiContainer, AudioCodecError> {
+    let mut pos = RIFF_HEADER_SIZE;  // Start after RIFF header
     
-    # Parse chunks
-    pos = 12  # After RIFF header
-    while pos < len(data):
-        chunk_id = data[pos:pos+4]
-        chunk_size = int.from_bytes(data[pos+4:pos+8], 'little')
+    while pos + CHUNK_HEADER_SIZE <= wav_data.len() {
+        let chunk_id = &wav_data[pos..pos+4];
+        let chunk_size = u32::from_le_bytes(/* ... */) as usize;
         
-        if chunk_id == b'LIST':
-            list_type = data[pos+8:pos+12]
-            if list_type == b'AAUD':
-                return True
+        if chunk_id == b"AAUD" {
+            // Found it!
+            let container_bytes = &wav_data[pos+8..pos+8+chunk_size];
+            return Ok(AiContainer::deserialize(container_bytes)?);
+        }
         
-        pos += 8 + chunk_size  # id(4)+size(4)+data
+        pos += CHUNK_HEADER_SIZE + chunk_size;
+    }
     
-    return False
+    Err(AudioCodecError::NoAaudTag)
+}
+```
 
-Serialization Format
-Step 1: Create AiContainer
-rust
+## Serialization Format
 
+### Step 1: Create AiContainer
+
+```rust
 let container = AiContainer {
-    media_type: MediaType::Audio,  // 1
+    media_type: MediaType::Audio,
     encoding: "wav".to_string(),
-    payload_type: PayloadType::Encoded,  // 0
+    payload_type: PayloadType::Encoded,
     metadata: AiMetadata {
         model_name: "AudioLDM".to_string(),
         model_version: "2.0".to_string(),
@@ -134,98 +130,99 @@ let container = AiContainer {
     payload: original_wav_data,  // Original WAV bytes
     hash: compute_hash(),
 };
+```
 
-Step 2: Serialize to CBOR
-rust
+### Step 2: Serialize to CBOR
 
+```rust
 let cbor_bytes = cbor::to_vec(&container);
 // Size: typically 200-500 bytes + metadata
+```
 
-Step 3: Create LIST chunk
+### Step 3: Create AAUD chunk
 
-Unlike PNG, WAV LIST chunks store raw binary data (no base64 encoding):
-text
+```rust
+let mut result = wav_data.to_vec();
+result.extend_from_slice(b"AAUD");
+result.extend_from_slice(&(container_bytes.len() as u32).to_le_bytes());
+result.extend_from_slice(&container_bytes);
+```
 
-LIST chunk:
-  ID:     'LIST'
-  Size:   4 + len(cbor_bytes)
-  Data:   'AAUD' + cbor_bytes
+### Step 4: Update RIFF header size
 
-Step 4: Insert into WAV
+```rust
+let new_file_size = (result.len() as u32) - 8;
+result[4..8].copy_from_slice(&new_file_size.to_le_bytes());
+```
 
-The LIST chunk is inserted after fmt and before data.
-Audio Format Requirements
+## Audio Format Requirements
 
 The underlying WAV audio MUST be:
 
-    Format: PCM (uncompressed) or IEEE float
+- Format: PCM (uncompressed) or IEEE float
+- Sample rate: Any (8kHz - 384kHz)
+- Bit depth: 16-bit, 24-bit, or 32-bit
+- Channels: Mono (1), Stereo (2), or multichannel
 
-    Sample rate: Any (8kHz - 384kHz)
+**Note:** AI-generated audio using compressed formats (MP3, AAC) should be decoded to PCM before embedding.
 
-    Bit depth: 16-bit, 24-bit, or 32-bit
+## Extraction Process
 
-    Channels: Mono (1), Stereo (2), or multichannel
+1. Parse RIFF chunks sequentially
+2. Find chunk with ID `"AAUD"`
+3. Read CBOR bytes directly
+4. CBOR deserialize to AiContainer
+5. Verify hash (optional)
+6. Verify signature (optional)
 
-AI-generated audio using compressed formats (MP3, AAC) should be decoded to PCM before embedding.
-Extraction Process
+## Compatibility Matrix
 
-    Parse RIFF chunks
+| Software | Can open? | Plays audio? | Shows metadata? |
+|----------|-----------|--------------|-----------------|
+| VLC | ✅ | ✅ | ❌ |
+| Windows Media Player | ✅ | ✅ | ❌ |
+| macOS QuickTime | ✅ | ✅ | ❌ |
+| Audacity | ✅ | ✅ | ❌ |
+| ffplay | ✅ | ✅ | ❌ |
+| Adobe Audition | ✅ | ✅ | ❌ |
+| AIMF tools | ✅ | ✅ | ✅ |
 
-    Find LIST chunk with type "AAUD"
+## Security Considerations
 
-    Read CBOR bytes directly (no decoding)
+### Malformed Chunks
 
-    CBOR deserialize to AiContainer
+Always validate chunk sizes:
 
-    Verify hash (optional)
-
-    Verify signature (optional)
-
-Compatibility Matrix
-Software	Can open?	Plays audio?	Shows metadata?
-VLC	✅	✅	❌
-Windows Media Player	✅	✅	❌
-macOS QuickTime	✅	✅	❌
-Audacity	✅	✅	❌
-ffplay	✅	✅	❌
-Adobe Audition	✅	✅	❌
-AIMF tools	✅	✅	✅
-Security Considerations
-Malformed Chunks
-
-WAV files can have arbitrary chunks. Always validate:
-rust
-
+```rust
 // DO: Check chunk size limits
 if chunk_size > MAX_CHUNK_SIZE {
     return Err("Chunk too large");
 }
 
-// DO: Validate LIST chunk structure
-if list_type != b'AAUD' && list_type != b'INFO' {
-    // Skip unknown LIST chunks
-    continue;
+// DO: Validate bounds
+if pos + CHUNK_HEADER_SIZE + chunk_size > wav_data.len() {
+    break;
 }
+```
 
-// DON'T: Trust chunk sizes blindly
-let data = &data[pos+8:pos+8+chunk_size];  // Potential overflow
-
-Hash Verification
+### Hash Verification
 
 Always verify the stored hash:
-rust
 
+```rust
 let computed_hash = sha256(&payload + &serialized_metadata);
 if computed_hash != container.hash {
     return Err("Audio integrity check failed");
 }
+```
 
-Example: Minimal WAV with AAUD
-Hex dump (simplified)
-text
+## Example: Minimal WAV with AAUD
 
+### Hex dump (simplified)
+
+```
 52 49 46 46              ← 'RIFF'
-XX XX XX XX              ← File size
+XX XX XX XX              ← File size (updated to include AAUD)
 57 41 56 45              ← 'WAVE'
 
 66 6D 74 20              ← 'fmt ' chunk
@@ -237,75 +234,75 @@ XX XX XX XX              ← File size
 04 00                    ← block align
 10 00                    ← 16 bits
 
-4C 49 53 54              ← 'LIST' chunk
-XX XX XX XX              ← LIST size
-41 41 55 44              ← 'AAUD' type
-[CBOR metadata...]       ← AiContainer
-
 64 61 74 61              ← 'data' chunk
 XX XX XX XX              ← data size
 [audio samples...]       ← PCM data
 
-File Size Overhead
-Original WAV	Metadata	AAUD Size	Overhead
-1 MB	200 B	1.00 MB	0.02%
-10 MB	200 B	10.00 MB	0.002%
-100 MB	500 B	100.00 MB	0.0005%
+41 41 55 44              ← 'AAUD' chunk (appended)
+XX XX XX XX              ← AAUD size
+[CBOR metadata...]       ← AiContainer
+```
+
+## File Size Overhead
+
+| Original WAV | Metadata | AAUD Size | Overhead |
+|--------------|----------|-----------|----------|
+| 1 MB | 200 B | 1.00 MB | 0.02% |
+| 10 MB | 200 B | 10.00 MB | 0.002% |
+| 100 MB | 500 B | 100.00 MB | 0.0005% |
 
 Raw CBOR (no base64) means minimal overhead.
-Large File Support (W64)
 
-For files >4GB, use the W64 (RF64) format extension:
-text
+## Large File Support (W64)
 
-W64 Header:
-┌──────────────┬──────────────┬──────────────────┐
-│ 'riff' (4)   │ -1 (0xFFFFFFFF) │ 'WAVE' (4)       │
-└──────────────┴──────────────┴──────────────────┘
-┌──────────────┬──────────────────────────────────┐
-│ 'ds64' (4)   │ Size (4) + 64-bit sizes          │
-└──────────────┴──────────────────────────────────┘
+For files >4GB, use the W64 (RF64) format extension. AAUD supports W64 via the same chunk mechanism.
 
-AAUD supports W64 via the same LIST chunk mechanism.
-Testing Vectors
-Test AAUD File Generation
-bash
+## Testing Vectors
 
-# Create test AAUD
-echo '{"sample_rate":44100,"samples":[0.5,-0.3,0.2]}' | \
-  cargo run --bin aimf -- ingest --type audio --output test.aaud --model test --version 1.0
+### Create Test AAUD
+
+```bash
+# Generate raw PCM and embed
+cat audio.pcm | cargo run --bin aimf -- raw \
+  --output test.aaud \
+  --type audio \
+  --sample-rate 44100 \
+  --channels 1 \
+  --model test \
+  --version 1.0
 
 # Verify structure
 ffprobe -v quiet -print_format json -show_format test.aaud
 
 # Extract metadata
 cargo run --bin aimf -- info test.aaud
+```
 
-Expected Output
-text
+### Expected Output
 
+```
 File: test.aaud
 Format: AAUD (AI Audio)
 Container: WAV
 Model: test v1.0
 Sample Rate: 44100 Hz
 Channels: 1
-Duration: 0.023 sec
+Duration: 1.000 sec
 Timestamp: 1705315200
 Hash: 5e884898da28047151d0e56f8dc6292773603d0d6aabbdd62a11ef721d1542d8
 Signature: Not signed
 Valid: ✅ Yes
+```
 
-References
+## References
 
-    WAV Format (Microsoft)
+- [WAV Format (Microsoft)](https://learn.microsoft.com/en-us/windows/win32/multimedia/waveform-audio-file-format)
+- [RIFF (Resource Interchange File Format)](http://www-mmsp.ece.mcgill.ca/Documents/AudioFormats/WAVE/Docs/riffmci.pdf)
+- [CBOR Specification (RFC 8949)](https://datatracker.ietf.org/doc/html/rfc8949)
 
-    RIFF (Resource Interchange File Format)
+## Changelog
 
-    RF64 (EBU Tech 3306)
-
-    CBOR Specification (RFC 8949)
-
-Changelog
-Version	Date	Changes
-1.0	2026-01-15	Initial specification
+| Version | Date | Changes |
+|---------|------|---------|
+| 1.0 | 2026-01-15 | Initial specification (chunk appended at end) |
+```

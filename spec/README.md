@@ -1,6 +1,6 @@
 # AI Media Format (AIMF) Specification
 
-**Version:** 1.0 (draft)  
+**Version:** 1.0  
 **Status:** Stable, seeking IANA registration  
 **License:** Apache 2.0
 
@@ -10,9 +10,9 @@ AIMF defines three container formats that embed AI provenance metadata into stan
 
 | Format | Extension | Container | Marker | MIME (proposed) |
 |--------|-----------|-----------|--------|-----------------|
-| AIMG | `.aimg` | PNG | `AIMG` text chunk | `image/aimg` |
-| AAUD | `.aaud` | WAV | `AAUD` LIST-INFO chunk | `audio/aaud` |
-| AVID | `.avid` | MP4 | `AVID` UUID box | `video/avid` |
+| AIMG | `.aimg` | PNG | `aiMg` chunk | `image/prs.aimg` |
+| AAUD | `.aaud` | WAV | `AAUD` chunk | `audio/prs.aaud` |
+| AVID | `.avid` | MP4 | `uuid` box (`avid-meta-box\0\0\0`) | `video/prs.avid` |
 
 ## Design Principles
 
@@ -20,31 +20,33 @@ AIMF defines three container formats that embed AI provenance metadata into stan
 2. **Forward extractability** — AI metadata can be removed to recover original file
 3. **Cryptographic optionality** — Signatures are optional but supported
 4. **Self-describing** — Metadata includes model, version, timestamp, modality
+5. **Minimal overhead** — Raw CBOR storage (no base64 for PNG, no JSON overhead)
 
 ## Common Structure
 
-All AIMF containers embed a binary serialized `AiContainer` struct:
+All AIMF containers embed a binary serialized `AiContainer` struct using **CBOR** (Concise Binary Object Representation):
 
 ```rust
 struct AiContainer {
-    media_type: u8,      // 0=Image, 1=Audio, 2=Video
-    encoding: String,    // e.g., "png", "wav", "mp4"
-    payload_type: u8,    // 0=Encoded, 1=Raw
+    version: u16,           // Format version (currently 1)
+    media_type: MediaType,  // 0=Image, 1=Audio, 2=Video
+    encoding: String,       // e.g., "png", "wav", "mp4"
+    payload_type: PayloadType, // 0=Encoded, 1=RawFrame, 2=RawVideo, 3=RawAudio
     metadata: AiMetadata,
-    payload: Vec<u8>,    // Original media bytes
-    hash: [u8; 32],      // SHA-256 of payload + metadata
+    hash: [u8; 32],         // SHA-256 of payload + metadata (excluding signature)
 }
+```
 
-AiMetadata Structure
-rust
+### AiMetadata Structure
 
+```rust
 struct AiMetadata {
     is_ai_generated: bool,      // Always true for AIMF
     model_name: String,
     model_version: String,
     prompt_hash: Option<[u8; 32]>,  // SHA-256 of generation prompt
     modality: String,               // "image", "audio", "video"
-    format: String,                 // MIME-like: "image/png", "audio/wav"
+    format: String,                 // "rgb8", "pcm16", "png", "wav", "mp4"
     width: Option<u32>,
     height: Option<u32>,
     sample_rate: Option<u32>,
@@ -54,109 +56,164 @@ struct AiMetadata {
     signature: Option<Vec<u8>>,     // Ed25519 signature (64 bytes)
     public_key: Option<Vec<u8>>,    // Ed25519 public key (32 bytes)
 }
+```
 
-Format AIMG (AI Image)
-Container: PNG
+### Binary Serialization Format
 
-AIMG embeds metadata in a tEXt chunk with keyword "AIMG".
-PNG Structure
-text
+```
+┌──────────────────┬──────────────────────────┐
+│ Header Size (4)  │ Header (CBOR)            │
+│ (big-endian)     │ (AiContainer w/o payload)│
+└──────────────────┴──────────────────────────┘
+```
 
+**Note:** Payload is stored separately in the container format (PNG/WAV/MP4), not in the CBOR stream.
+
+---
+
+## Format AIMG (AI Image)
+
+**Container:** PNG  
+**Chunk Type:** `aiMg` (ancillary, safe to ignore)  
+**Chunk Location:** Before IEND chunk  
+**Data:** Raw CBOR (no base64 encoding)
+
+### PNG Structure
+
+```
 PNG Signature (8 bytes)
 ├── IHDR chunk (width, height, bit depth, etc.)
-├── tEXt chunk (keyword="AIMG", text=serialized AiContainer)
+├── PLTE chunk (palette, optional)
 ├── IDAT chunk(s) (image data)
+├── ... other chunks
+├── aiMg chunk ← NEW (CBOR AiContainer)
 └── IEND chunk
+```
 
-Serialization Format
+### AIMG Chunk Format
 
-The tEXt chunk contains CBOR (Concise Binary Object Representation) of the AiContainer struct, then base64-encoded to fit PNG's text constraints.
-text
+```
+┌──────────────┬──────────────┬──────────────────────────┬──────────────┐
+│ Length (4)   │ 'aiMg' (4)   │ CBOR AiContainer (raw)   │ CRC32 (4)    │
+└──────────────┴──────────────┴──────────────────────────┴──────────────┘
+```
 
-[AIMG]\0[base64(cbor(AiContainer))]
+### Why `aiMg` instead of `AIMG`?
+- Lowercase first letter = ancillary chunk (safe for players to ignore)
+- Prevents conflicts with registered chunk types
+- Follows PNG specification conventions
 
-Example: Extract metadata
-bash
+### Compatibility
 
-# Using PNG tools directly
-pngcheck -v image.aimg | grep -A20 "tEXt"
+- ✅ Standard PNG viewers show the image (ignore unknown `aiMg` chunk)
+- ✅ ffmpeg, ImageMagick, GIMP all work
+- ✅ Web browsers display as normal PNG
+
+### Example: Extract metadata
+
+```bash
+# Using pngcheck
+pngcheck -v image.aimg | grep -A5 "aiMg"
 
 # Using aimf
-aimf info image.aimg
+aimf info image.aimg --simple
+```
 
-Compatibility
+---
 
-    ✅ Standard PNG viewers show the image (ignore unknown tEXt chunks)
+## Format AAUD (AI Audio)
 
-    ✅ ffmpeg, ImageMagick, GIMP all work
+**Container:** WAV (RIFF)  
+**Chunk ID:** `AAUD`  
+**Chunk Location:** Appended at end of file  
+**Data:** Raw CBOR (no encoding)
 
-    ✅ Web browsers display as normal PNG
+### WAV Structure
 
-Format AAUD (AI Audio)
-Container: WAV (RIFF)
-
-AAUD embeds metadata in a LIST-INFO chunk with type "AAUD".
-WAV Structure
-text
-
-RIFF Header
-├── fmt  chunk (audio format info)
+```
+RIFF Header (12 bytes)
+├── fmt chunk (audio format info)
 ├── data chunk (audio samples)
-└── LIST chunk
-    └── INFO subchunk (type="AAUD", data=serialized AiContainer)
+├── ... other chunks
+└── AAUD chunk ← APPENDED (CBOR AiContainer)
+```
 
-Serialization Format
+### AAUD Chunk Format
 
-The LIST-INFO chunk contains CBOR of the AiContainer struct (raw, not base64).
-text
+```
+┌──────────────┬──────────────┬──────────────────────────┐
+│ 'AAUD' (4)   │ Size (4)     │ CBOR AiContainer (raw)   │
+└──────────────┴──────────────┴──────────────────────────┘
+```
 
-"AAUD" (4 bytes) + size (4 bytes) + cbor(AiContainer)
+### Why appended?
+- Simplest implementation (no chunk reordering)
+- Update RIFF header size to include new chunk
+- Players ignore unknown chunks
 
-Example: Extract metadata
-bash
+### Compatibility
 
+- ✅ All WAV players play the audio (ignore unknown chunks)
+- ✅ Audacity, VLC, ffplay all work
+- ✅ Windows Media Player (basic WAV support)
+
+### Example: Extract metadata
+
+```bash
 # Using ffprobe
 ffprobe -v quiet -print_format json -show_format audio.aaud
 
 # Using aimf
-aimf info audio.aaud
+aimf info audio.aaud --simple
+```
 
-Compatibility
+---
 
-    ✅ All WAV players play the audio (ignore unknown chunks)
+## Format AVID (AI Video)
 
-    ✅ Audacity, VLC, ffplay all work
+**Container:** MP4 (ISO/IEC 14496-12)  
+**Box Type:** `uuid`  
+**UUID:** `61 76 69 64 2D 6D 65 74 61 2D 62 6F 78 00 00 00` ("avid-meta-box\0\0\0")  
+**Box Location:** After `moov` box  
+**Data:** Raw CBOR
 
-    ✅ Windows Media Player (basic WAV support)
+### MP4 Structure
 
-Format AVID (AI Video)
-Container: MP4 (ISO/IEC 14496-12)
-
-AVID embeds metadata in a UUID box (uuid) with UUID {A1B2C3D4-E5F6-4789-AB12-CD34EF567890}.
-MP4 Structure
-text
-
+```
 ftyp box (file type)
 ├── moov box (metadata)
 │   ├── mvhd (movie header)
-│   ├── trak (track)
-│   └── uuid (AVID metadata) ← NEW
-│       ├── uuid_type = "AVID"
-│       └── data = cbor(AiContainer)
+│   ├── trak (video track)
+│   └── trak (audio track)
+├── uuid box ← NEW (after moov)
+│   ├── UUID = "avid-meta-box\0\0\0"
+│   └── data = CBOR AiContainer
 └── mdat box (media data)
+```
 
-UUID Value
-text
+### UUID Box Format
 
-A1B2C3D4-E5F6-4789-AB12-CD34EF567890
+```
+┌──────────────┬──────────────┬──────────────────────────────────────────┬──────────────────────────┐
+│ Size (4)     │ 'uuid' (4)   │ UUID (16 bytes)                          │ Data (Size-24)           │
+│              │              │ "avid-meta-box\0\0\0"                    │ CBOR AiContainer         │
+└──────────────┴──────────────┴──────────────────────────────────────────┴──────────────────────────┘
+```
 
-Registered with ISO for private use.
-Serialization Format
+### Why after moov?
+- Simpler implementation (no need to rebuild moov)
+- Works with existing moov structure
+- Players ignore unknown boxes anywhere
 
-The UUID box contains raw CBOR of the AiContainer struct.
-Example: Extract metadata
-bash
+### Compatibility
 
+- ✅ Any MP4 player (VLC, ffplay, QuickTime) plays the video
+- ✅ YouTube accepts `.avid` files (they're valid MP4)
+- ✅ Unknown UUID boxes are ignored by standard parsers
+
+### Example: Extract metadata
+
+```bash
 # Using MP4Box
 MP4Box -info video.avid
 
@@ -164,88 +221,134 @@ MP4Box -info video.avid
 ffprobe -v quiet -print_format json -show_format video.avid
 
 # Using aimf
-aimf info video.avid
+aimf info video.avid --simple
+```
 
-Compatibility
+---
 
-    ✅ Any MP4 player (VLC, ffplay, QuickTime) plays the video
+## Cryptographic Signing
 
-    ✅ YouTube accepts .avid files (they're valid MP4)
+### Ed25519 Integration
 
-    ✅ Unknown UUID boxes are ignored by standard parsers
-
-Cryptographic Signing
-Ed25519 Integration
-text
-
+```
 ┌─────────────────────────────────────────────────────────┐
-│ 1. Serialize AiContainer (without signature/public_key) │
+│ 1. Clone AiContainer without signature/public_key       │
 │    ↓                                                    │
-│ 2. SHA-256 hash of serialized bytes                    │
+│ 2. Serialize to CBOR                                    │
 │    ↓                                                    │
-│ 3. Sign hash with Ed25519 private key                  │
+│ 3. SHA-256 hash of serialized bytes                     │
+│    (Already stored in AiContainer.hash)                 │
 │    ↓                                                    │
-│ 4. Store signature (64 bytes) + public key (32 bytes)  │
-│    in AiContainer fields                               │
+│ 4. Sign hash with Ed25519 private key                   │
+│    ↓                                                    │
+│ 5. Store signature (64 bytes) + public key (32 bytes)   │
+│    in AiMetadata fields                                 │
 └─────────────────────────────────────────────────────────┘
+```
 
-Verification
-text
+### Verification
 
-1. Extract signature and public_key from AiContainer
+```
+1. Extract signature and public_key from AiMetadata
 2. Remove them (temporarily) from the struct
-3. Re-serialize and hash
-4. Verify signature using public key
-5. Compare hash with stored hash
+3. Re-serialize and compute hash
+4. Compare with stored hash (integrity)
+5. Verify signature using public key (authenticity)
+```
 
-Security Properties
-Property	Mechanism
-Integrity	SHA-256 hash of payload+metadata
-Authenticity	Ed25519 signature
-Non-repudiation	Public key identifies signer
-Tamper detection	Hash mismatch = corrupted
-Migration from v0 (if any)
+### Signing Data Construction
 
-No v0 exists — this is the initial specification.
-IANA Registration Status
+```rust
+pub fn get_signing_data(&self) -> Vec<u8> {
+    let signing_metadata = AiMetadata {
+        signature: None,
+        public_key: None,
+        ..self.metadata.clone()
+    };
+    
+    let container_for_signing = AiContainer {
+        version: self.version,
+        media_type: self.media_type,
+        encoding: self.encoding.clone(),
+        payload_type: self.payload_type,
+        metadata: signing_metadata,
+        hash: self.hash,
+    };
+    
+    container_for_signing.serialize().unwrap_or_default()
+}
+```
 
-    Proposed: Q2 2026
+### Security Properties
 
-    Review: TBD
+| Property | Mechanism |
+|----------|-----------|
+| Integrity | SHA-256 hash of payload+metadata |
+| Authenticity | Ed25519 signature of the hash |
+| Non-repudiation | Public key identifies signer |
+| Tamper detection | Hash mismatch = corrupted/modified |
 
-    See: docs/IANA-APPLICATION.md
+---
 
-Reference Implementations
-Language	Repository	Status
-Rust	This repo	✅ Complete
-Python	(planned)	❌ Not started
-JavaScript	(planned)	❌ Not started
-Conformance Testing
+## IANA Registration Status
+
+| Format | MIME Type | Status |
+|--------|-----------|--------|
+| AIMG | `image/prs.aimg` | Proposed (personal tree) |
+| AAUD | `audio/prs.aaud` | Proposed (personal tree) |
+| AVID | `video/prs.avid` | Proposed (personal tree) |
+
+See: `docs/IANA-APPLICATION.md`
+
+---
+
+## Reference Implementations
+
+| Language | Repository | Status |
+|----------|------------|--------|
+| Rust | This repo | ✅ Complete |
+| Python | (planned) | ❌ Not started |
+| JavaScript | (planned) | ❌ Not started |
+
+---
+
+## Conformance Testing
 
 To claim AIMF conformance, an implementation must:
 
-    Read all three container formats
+1. Read all three container formats
+2. Preserve unknown chunks when round-tripping
+3. Verify Ed25519 signatures correctly
+4. Extract original media losslessly
+5. Support raw CBOR (no base64 for PNG)
 
-    Preserve unknown chunks when round-tripping
+Test suite: `cargo test --workspace`
 
-    Verify Ed25519 signatures correctly
+---
 
-    Extract original media losslessly
+## Version History
 
-Test suite: cargo test --workspace
-Version History
-Version	Date	Changes
-1.0-draft	2026-01	Initial specification
-1.0	TBD	IANA submission
-Appendix A: CBOR Schema (CDDL)
-cddl
+| Version | Date | Changes |
+|---------|------|---------|
+| 1.0 | 2026-01-15 | Initial specification |
+| | | - CBOR instead of JSON |
+| | | - Raw CBOR storage (no base64 for PNG) |
+| | | - `aiMg` chunk for PNG |
+| | | - `AAUD` appended chunk for WAV |
+| | | - Fixed UUID `avid-meta-box\0\0\0` for MP4 |
+| | | - Ed25519 crypto support |
 
+---
+
+## Appendix A: CBOR Schema (CDDL)
+
+```cddl
 AiContainer = {
+    version: uint,
     media_type: 0..2,
     encoding: tstr,
-    payload_type: 0..1,
+    payload_type: 0..3,
     metadata: AiMetadata,
-    payload: bytes,
     hash: bytes .size 32,
 }
 
@@ -265,31 +368,37 @@ AiMetadata = {
     ? signature: bytes .size 64,
     ? public_key: bytes .size 32,
 }
+```
 
-Appendix B: Magic Bytes
-Format	Offset	Bytes
-AIMG	PNG offset + IHDR	‰PNG
-AAUD	0	RIFF....WAVE
-AVID	4	ftypmp4
+---
 
-AIMF markers appear after the magic bytes.
-Appendix C: Example Files
+## Appendix B: Magic Bytes & Markers
 
-Test files are in /examples/output/ after running:
-bash
+| Format | Detection Method | Magic/ Marker |
+|--------|------------------|----------------|
+| AIMG | PNG signature + `aiMg` chunk | `89 50 4E 47 0D 0A 1A 0A` + chunk type `61 69 4D 67` |
+| AAUD | RIFF header + `AAUD` chunk | `52 49 46 46` + `57 41 56 45` + chunk ID `41 41 55 44` |
+| AVID | `ftyp` box + UUID box | `66 74 79 70` + UUID `61 76 69 64 2D 6D 65 74 61 2D 62 6F 78 00 00 00` |
 
-cargo run --example ai_generate_image
-cargo run --example ai_generate_audio
-cargo run --example ai_generate_video_simple
+---
 
-References
+## Appendix C: Example Files
 
-    PNG Specification (RFC 2083)
+Test files are in `/examples/output/` after running:
 
-    WAV Format (Microsoft)
+```bash
+cargo run --example ai_generate_image      # Creates test_image.aimg
+cargo run --example ai_generate_audio      # Creates test_audio.aaud
+cargo run --example ai_generate_video_simple # Creates test_video.avid
+```
 
-    MP4 (ISO/IEC 14496-12)
+---
 
-    CBOR (RFC 8949)
+## References
 
-    Ed25519 (RFC 8032)
+- [PNG Specification (RFC 2083)](https://datatracker.ietf.org/doc/html/rfc2083)
+- [WAV Format (Microsoft)](https://learn.microsoft.com/en-us/windows/win32/multimedia/waveform-audio-file-format)
+- [MP4 (ISO/IEC 14496-12)](https://www.iso.org/standard/83102.html)
+- [CBOR (RFC 8949)](https://datatracker.ietf.org/doc/html/rfc8949)
+- [Ed25519 (RFC 8032)](https://datatracker.ietf.org/doc/html/rfc8032)
+```

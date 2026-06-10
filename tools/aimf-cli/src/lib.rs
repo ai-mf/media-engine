@@ -27,8 +27,8 @@ pub struct AaudConfig {
     pub show_progress: bool,
     pub c2pa_enabled: bool,
     pub max_sample_rate: u32,
-    pub max_audio_samples: u32,
-    pub max_memory_bytes: u64,
+    pub max_audio_samples: usize,
+    pub max_memory_bytes: usize,
 }
 
 impl Default for AaudConfig {
@@ -71,8 +71,8 @@ pub struct AvidConfig {
     pub show_progress: bool,
     pub c2pa_enabled: bool,
     pub max_dimension: u32,
-    pub max_video_frames: u32,
-    pub max_memory_bytes: u64,
+    pub max_video_frames: usize,
+    pub max_memory_bytes: usize,
     pub max_file_size: u64,
 }
 
@@ -133,9 +133,9 @@ impl MediaTypeConfig {
     /// Get max_memory_bytes (common across all types)
     pub fn max_memory_bytes(&self) -> u64 {
         match self {
-            Self::Audio(cfg) => cfg.max_memory_bytes,
-            Self::Image(cfg) => cfg.max_memory_bytes,
-            Self::Video(cfg) => cfg.max_memory_bytes,
+            Self::Audio(cfg) => cfg.max_memory_bytes as u64,
+            Self::Image(cfg) => cfg.max_memory_bytes as u64,
+            Self::Video(cfg) => cfg.max_memory_bytes as u64,
         }
     }
 }
